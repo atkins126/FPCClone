@@ -20,13 +20,15 @@ Abstract:
 *)
 unit FPPJsSrcMap;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
   SysUtils, math,
-  jswriter, jstree, JSSrcMap, fpjson, Pas2JSUtils;
+  jswriter, jstree, JSSrcMap, fpjson, Pas2JSUtils{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 type
   { TPas2JSSrcMap }

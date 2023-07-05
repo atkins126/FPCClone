@@ -1,4 +1,4 @@
-{ ********************************************************************* 
+{ *********************************************************************
     This file is part of the Free Component Library (FCL)
     Copyright (c) 2016 Michael Van Canneyt.
        
@@ -15,7 +15,9 @@
                                  
 unit jsbase;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
@@ -32,9 +34,9 @@ Type
   TJSString = UnicodeString;
   TJSChar = WideChar;
   TJSNumber = Double;
-  {$ifdef fpc}
+  {$IF DEFINED(fpc) or DEFINED(DCC)}
   TJSPChar = PWideChar;
-  {$endif}
+  {$ENDIF}
 
   { TJSValue }
 
@@ -70,11 +72,11 @@ Type
     procedure SetIsNull(const AValue: Boolean);
     procedure SetIsUndefined(const AValue: Boolean);
   Public
-    Constructor Create;
+    Constructor Create; overload;
     Constructor CreateNull;
-    Constructor Create(ANumber : TJSNumber);
-    Constructor Create(ABoolean : Boolean);
-    Constructor Create(AString: TJSString);
+    Constructor Create(ANumber : TJSNumber); overload;
+    Constructor Create(ABoolean : Boolean); overload;
+    Constructor Create(AString: TJSString); overload;
     Destructor Destroy; override;
     Property ValueType : TJSType Read FValueType;
     Property CustomValue: TJSString Read FCustomValue Write FCustomValue;
@@ -282,7 +284,7 @@ end;
 
 function TJSValue.GetAsCompletion: TObject;
 begin
-  Result:=TObject(FValue{$ifdef fpc}.P{$endif});
+  Result:=TObject(FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF});
 end;
 
 function TJSValue.GetAsNumber: TJSNumber;
@@ -296,7 +298,7 @@ end;
 function TJSValue.GetAsObject: TObject;
 begin
   If (ValueType=jstObject) then
-    Result:=TObject(FValue{$ifdef fpc}.P{$endif})
+    Result:=TObject(FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF})
   else
     Result:=nil;
 end;
@@ -304,7 +306,7 @@ end;
 function TJSValue.GetAsReference: TObject;
 begin
   If (ValueType=jstReference) then
-    Result:=TObject(FValue{$ifdef fpc}.P{$endif})
+    Result:=TObject(FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF})
   else
     Result:=nil;
 end;
@@ -312,7 +314,7 @@ end;
 function TJSValue.GetAsString: TJSString;
 begin
   If (ValueType=jstString) then
-    Result:=TJSString(FValue{$ifdef fpc}.P{$endif})
+    Result:=TJSString(FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF})
   else
     Result:='';
 end;
@@ -364,25 +366,25 @@ end;
 procedure TJSValue.SetAsCompletion(const AValue: TObject);
 begin
   ClearValue(jstBoolean);
-  FValue{$ifdef fpc}.P{$endif}:=AValue;
+  FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF}:=AValue;
 end;
 
 procedure TJSValue.SetAsNumber(const AValue: TJSNumber);
 begin
   ClearValue(jstNumber);
-  FValue{$ifdef fpc}.F{$endif}:=AValue;
+  FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.F{$ENDIF}:=AValue;
 end;
 
 procedure TJSValue.SetAsObject(const AValue: TObject);
 begin
   ClearValue(jstObject);
-  FValue{$ifdef fpc}.P{$endif}:=AVAlue;
+  FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF}:=AVAlue;
 end;
 
 procedure TJSValue.SetAsReference(const AValue: TObject);
 begin
   ClearValue(jstReference);
-  FValue{$ifdef fpc}.P{$endif}:=AVAlue;
+  FValue{$IF DEFINED(fpc) or DEFINED(DCC)}.P{$ENDIF}:=AVAlue;
 end;
 
 procedure TJSValue.SetAsString(const AValue: TJSString);

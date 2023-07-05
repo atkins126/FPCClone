@@ -18,7 +18,9 @@
 }
 unit Pas2jsFileCache;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$i pas2js_defines.inc}
 
@@ -33,7 +35,7 @@ uses
   Classes, SysUtils,
   fpjson,
   PScanner, PasResolver, PasUseAnalyzer,
-  Pas2jsLogger, Pas2jsFileUtils, Pas2JSFS, Pas2JSUtils;
+  Pas2jsLogger, Pas2jsFileUtils, Pas2JSFS, Pas2JSUtils{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 
 type
@@ -177,8 +179,8 @@ type
     Procedure IncLineNumber; override;
     property CachedFile: TPas2jsCachedFile read FCachedFile;
   public
-    constructor Create(const AFilename: string); override;
-    constructor Create(aFile: TPas2jsCachedFile); reintroduce;
+    constructor Create(const AFilename: string); overload; override;
+    constructor Create(aFile: TPas2jsCachedFile); reintroduce; overload;
   end;
 
   { TPas2jsCachedFile }
@@ -368,7 +370,7 @@ function CompareFilenameWithCachedFile(Filename, CachedFile: Pointer): integer;
 var
   Cache: TPas2jsCachedFile absolute CachedFile;
 begin
-  Result:=CompareFilenames(AnsiString(Filename),Cache.Filename);
+  Result:=CompareFilenames(String(Filename),Cache.Filename);
 end;
 
 function CompareCachedFiles(File1, File2: Pointer): integer;
@@ -391,7 +393,7 @@ function CompareAnsiStringWithDirectoryCache(Path, DirCache: Pointer): integer;
 var
   Directory: TPas2jsCachedDirectory absolute DirCache;
 begin
-  Result:=CompareFilenames(AnsiString(Path),Directory.Path);
+  Result:=CompareFilenames(String(Path),Directory.Path);
 end;
 
 {$ENDIF}
@@ -541,7 +543,7 @@ end;
 
 procedure TPas2jsCachedDirectory.DoReadDir;
 var
-  Info: TUnicodeSearchRec;
+  Info: TSearchRec;
 begin
   if Assigned(Pool.OnReadDirectory) then
     if Pool.OnReadDirectory(Self) then exit;
@@ -1731,7 +1733,7 @@ end;
 procedure TPas2jsFilesCache.SaveToFile(ms: TFPJSStream; Filename: string);
 var
   s: string;
-  {$IFDEF FPC}
+  {$IF DEFINED(FPC) OR DEFINED(DCC)}
   i: Integer;
   l: TMaxPrecInt;
   FS: TFileStream;

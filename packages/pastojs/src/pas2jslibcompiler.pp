@@ -15,7 +15,9 @@
 }
 unit pas2jslibcompiler;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$IFDEF darwin}
 {$DEFINE UseCDecl}
@@ -189,7 +191,7 @@ function TLibraryPas2JSCompiler.ReadFile(aFilename: string; var aSource: string)
 Var
   Buf : Array of AnsiChar;
   S : TStringStream;
-  BytesRead : Cardinal;
+  BytesRead : Int32;
 
 begin
   if Not Assigned(OnReadPasFile) then
@@ -199,7 +201,7 @@ begin
     if ReadBufferLen=0 then
       ReadBufferLen:=DefaultReadBufferSize;
     SetLength(Buf{%H-},ReadBufferLen);
-    S:=TStringStream.Create(''{$IF FPC_FULLVERSION>=30101},CP_ACP{$ENDIF});
+    S:=TStringStream.Create(''{$IF Defined(FPC_FULLVERSION) and (FPC_FULLVERSION>=30101)},CP_ACP{$ENDIF});
     Repeat
       BytesRead:=ReadBufferLen;
       {$IFDEF DebugLib}
@@ -269,13 +271,13 @@ end;
 constructor TLibraryPas2JSCompiler.Create;
 begin
   inherited Create;
-  Log.OnLog:=@DoLibraryLog;
-  FileCache.OnReadFile:=@ReadFile;
+  Log.OnLog:={$IFDEF FPC}@{$ENDIF}DoLibraryLog;
+  FileCache.OnReadFile:={$IFDEF FPC}@{$ENDIF}ReadFile;
   FReadBufferLen:=DefaultReadBufferSize;
-  FileCache.OnReadDirectory:=@ReadDirectory;
+  FileCache.OnReadDirectory:={$IFDEF FPC}@{$ENDIF}ReadDirectory;
   ConfigSupport:=TPas2JSFileConfigSupport.Create(Self);
   PostProcessorSupport:=TPas2JSFSPostProcessorSupport.Create(Self);
-  FileCache.OnGetFileSrcAttr:=@GetFileSrcAttr;
+  FileCache.OnGetFileSrcAttr:={$IFDEF FPC}@{$ENDIF}GetFileSrcAttr;
 end;
 
 procedure TLibraryPas2JSCompiler.CheckUnitAlias(var UseUnitName: string);

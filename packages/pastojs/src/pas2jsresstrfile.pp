@@ -1,11 +1,13 @@
 unit pas2jsresstrfile;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
-  SysUtils, fpJSON;
+  SysUtils, fpJSON{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 Type
 

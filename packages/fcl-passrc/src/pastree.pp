@@ -20,7 +20,7 @@ unit PasTree;
 
 interface
 
-uses SysUtils, Classes;
+uses SysUtils, Classes{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 resourcestring
   // Parse tree node type names
@@ -218,7 +218,7 @@ type
     Kind      : TPasExprKind;
     OpCode    : TExprOpCode;
     Format1,Format2 : TPasExpr; // write, writeln, str
-    constructor Create(AParent : TPasElement; AKind: TPasExprKind; AOpCode: TExprOpCode); virtual; overload;
+    constructor Create(AParent : TPasElement; AKind: TPasExprKind; AOpCode: TExprOpCode); overload; virtual;
     procedure FreeChildren(Prepare: boolean); override;
   end;
 
@@ -776,13 +776,6 @@ type
     okClassHelper, okRecordHelper, okTypeHelper,
     okDispInterface, okObjcClass, okObjcCategory,
     okObjcProtocol);
-const
-  okWithFields = [okObject, okClass, okObjcClass, okObjcCategory];
-  okAllHelpers = [okClassHelper,okRecordHelper,okTypeHelper];
-  okWithClassFields = okWithFields+okAllHelpers;
-  okObjCClasses = [okObjcClass, okObjcCategory, okObjcProtocol];
-
-type
 
   TPasClassInterfaceType = (
     citCom, // default
@@ -1433,14 +1426,14 @@ type
     function AddWithDo(const Expression: TPasExpr): TPasImplWithDo;
     function AddCaseOf(const Expression: TPasExpr): TPasImplCaseOf;
     function AddForLoop(AVar: TPasVariable;
-      const AStartValue, AEndValue: TPasExpr): TPasImplForLoop;
+      const AStartValue, AEndValue: TPasExpr): TPasImplForLoop; overload;
     function AddForLoop(AVarName : TPasExpr; AStartValue, AEndValue: TPasExpr;
-      ADownTo: Boolean = false): TPasImplForLoop;
+      ADownTo: Boolean = false): TPasImplForLoop; overload;
     function AddTry: TPasImplTry;
-    function AddExceptOn(const VarName, TypeName: string): TPasImplExceptOn;
-    function AddExceptOn(const VarName: string; VarType: TPasType): TPasImplExceptOn;
-    function AddExceptOn(const VarEl: TPasVariable): TPasImplExceptOn;
-    function AddExceptOn(const TypeEl: TPasType): TPasImplExceptOn;
+    function AddExceptOn(const VarName, TypeName: string): TPasImplExceptOn; overload;
+    function AddExceptOn(const VarName: string; VarType: TPasType): TPasImplExceptOn; overload;
+    function AddExceptOn(const VarEl: TPasVariable): TPasImplExceptOn; overload;
+    function AddExceptOn(const TypeEl: TPasType): TPasImplExceptOn; overload;
     function AddRaise: TPasImplRaise;
     function AddLabelMark(const Id: string): TPasImplLabelMark;
     function AddAssign(Left, Right: TPasExpr): TPasImplAssign;
@@ -1721,6 +1714,11 @@ type
 
 
 const
+  okWithFields = [okObject, okClass, okObjcClass, okObjcCategory];
+  okAllHelpers = [okClassHelper,okRecordHelper,okTypeHelper];
+  okWithClassFields = okWithFields+okAllHelpers;
+  okObjCClasses = [okObjcClass, okObjcCategory, okObjcProtocol];
+
   AccessNames: array[TArgumentAccess] of String = ('', 'const ', 'var ', 'out ','constref ');
   AccessDescriptions: array[TArgumentAccess] of String = ('default', 'const', 'var', 'out','constref');
   AllVisibilities: TPasMemberVisibilities =
@@ -1911,9 +1909,17 @@ begin
   C:=Expr.ClassType;
 
   Result:=C.ClassName;
+  {$IFDEF DCC}
+  s := TRttiEnumerationType.GetName(Expr.Kind);
+  {$ELSE}
   str(Expr.Kind,s);
+  {$ENDIF}
   Result:=Result+' '+s;
+  {$IFDEF DCC}
+  s := TRttiEnumerationType.GetName(Expr.OpCode);
+  {$ELSE}
   str(Expr.OpCode,s);
+  {$ENDIF}
   Result:=Result+' '+s;
 
   if C=TPrimitiveExpr then
@@ -1921,7 +1927,7 @@ begin
   else if C=TUnaryExpr then
     Result:=Result+' Operand='+WritePasElTree(TUnaryExpr(Expr).Operand,FollowPrefix)
   else if C=TBoolConstExpr then
-    Result:=Result+' Value='+BoolToStr(TBoolConstExpr(Expr).Value,'True','False')
+    Result:=Result+' Value='+BoolToStr(TBoolConstExpr(Expr).Value)
   else if C=TArrayValues then
     begin
     ArrayValues:=TArrayValues(Expr);

@@ -17,9 +17,8 @@
   **********************************************************************}
 unit JSSrcMap;
 
-{$mode objfpc}{$H+}
-
 {$ifdef fpc}
+  {$mode objfpc}{$H+}
   {$define UsePChar}
   {$define HasJsonParser}
   {$define HasStreams}
@@ -47,7 +46,9 @@ uses
   {$ifdef HasJsonParser}
   , jsonparser, jsonscanner
   {$endif}
-  ;
+  {$IFDEF DCC}
+  , Delphi.Helper
+  {$ENDIF};
 
 const
   Base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -168,10 +169,10 @@ type
 
 function DefaultSrcMapHeader: string;
 
-function EncodeBase64VLQ(i: NativeInt): String; // base64 Variable Length Quantity
-function DecodeBase64VLQ(const s: string): NativeInt; // base64 Variable Length Quantity
+function EncodeBase64VLQ(i: NativeInt): String; overload; // base64 Variable Length Quantity
+function DecodeBase64VLQ(const s: string): NativeInt; overload; // base64 Variable Length Quantity
 function DecodeBase64VLQ(
-  {$ifdef UsePChar}var p: PChar{$else}const s: string; var p: integer{$endif}): NativeInt; // base64 Variable Length Quantity
+  {$ifdef UsePChar}var p: PChar{$else}const s: string; var p: integer{$endif}): NativeInt; overload; // base64 Variable Length Quantity
 
 function CompareSegmentWithGeneratedLineCol(
   Item1, Item2: {$ifdef pas2js}jsvalue{$else}Pointer{$endif}): Integer;
@@ -810,7 +811,7 @@ const
 var
   p: PChar;
 
-  function Decode: NativeInt; inline;
+  function Decode: NativeInt;
   begin
     Result:=DecodeBase64VLQ(p);
   end;
@@ -823,7 +824,7 @@ var
 var
   p: integer;
 
-  function Decode: NativeInt; inline;
+  function Decode: NativeInt;
   begin
     Result:=DecodeBase64VLQ(Mapping,p);
   end;

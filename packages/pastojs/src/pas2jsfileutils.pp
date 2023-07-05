@@ -18,7 +18,9 @@
 }
 unit Pas2jsFileUtils;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$i pas2js_defines.inc}
 
@@ -31,7 +33,7 @@ uses
   {$IFDEF Pas2JS}
   JS, NodeJS, Node.FS,
   {$ENDIF}
-  SysUtils, Classes, Pas2JSUtils;
+  SysUtils, Classes, Pas2JSUtils{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 function FilenameIsAbsolute(const aFilename: string):boolean;
 function FilenameIsWinAbsolute(const aFilename: string):boolean;
@@ -718,7 +720,7 @@ begin
   {$IFDEF Pas2js}
   case NJS_OS.platform of
   'darwin':
-    {$IF ECMAScript>5}
+    {$IF Declared(ECMAScript) and (ECMAScript>5)}
     Result:=TJSString(Filename).normalize('NFD');
     {$ELSE}
     begin
@@ -757,7 +759,7 @@ begin
 end;
 {$ELSE}
 
-  function IsNameEnd(NameP: PChar): boolean; inline;
+  function IsNameEnd(NameP: PChar): boolean;
   begin
     Result:=(NameP^=#0) and (NameP-PChar(Name)=length(Name));
   end;
@@ -864,6 +866,9 @@ begin
       {$IFDEF Darwin}
       Result:=EncodingUTF8;
       {$ELSE}
+      {$IFDEF DCC}
+      Result:=EncodingUTF8;
+      {$ELSE}
       // unix
       Lang := GetEnvironmentVariable('LC_ALL');
       if Lang='' then
@@ -873,6 +878,7 @@ begin
           Lang := GetEnvironmentVariable('LANG');
       end;
       Result:=GetUnixEncoding;
+      {$ENDIF}
       {$ENDIF}
     {$ENDIF}
   {$ENDIF}
@@ -902,10 +908,10 @@ begin
 end;
 {$ELSE}
 var
-  p: PChar;
+  p: PAnsiChar;
 begin
   if s='' then exit(true);
-  p:=PChar(s);
+  p:=PAnsiChar(s);
   repeat
     case p^ of
     #0: if p-PChar(s)=length(s) then exit(true);

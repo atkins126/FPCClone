@@ -13,13 +13,15 @@
 
  **********************************************************************}
 
+{$IFDEF FPC}
 {$mode objfpc}
+{$ENDIF}
 
 Unit Pipes;
 
 Interface
 
-Uses sysutils,Classes;
+Uses sysutils,Classes{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 Type
   EPipeError = Class(EStreamError);

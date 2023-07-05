@@ -1,4 +1,4 @@
-{
+﻿{
     This file is part of the Free Component Library
 
     Pascal source parser
@@ -59,7 +59,9 @@ ToDo:
 }
 unit PasResolveEval;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$ifdef fpc}
   {$define UsePChar}
@@ -71,7 +73,7 @@ unit PasResolveEval;
 interface
 
 uses
-  Sysutils, Classes, Math, PasTree, PScanner;
+  Sysutils, Classes, Math, PasTree, PScanner{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 // message numbers
 const
@@ -396,7 +398,7 @@ type
   {$endif}
   TMaxPrecCurrency = currency;
 
-  {$ifdef fpc}
+  {$IF DEFINED(fpc) or DEFINED(DCC)}
   PMaxPrecInt = ^TMaxPrecInt;
   PMaxPrecUInt = ^TMaxPrecUInt;
   PMaxPrecFloat = ^TMaxPrecFloat;
@@ -522,8 +524,8 @@ type
     Int: TMaxPrecInt;
     Typed: TResEvalTypedInt;
     constructor Create; override;
-    constructor CreateValue(const aValue: TMaxPrecInt);
-    constructor CreateValue(const aValue: TMaxPrecInt; aTyped: TResEvalTypedInt);
+    constructor CreateValue(const aValue: TMaxPrecInt); overload;
+    constructor CreateValue(const aValue: TMaxPrecInt; aTyped: TResEvalTypedInt); overload;
     function Clone: TResEvalValue; override;
     function AsString: string; override;
     function AsDebugString: string; override;
@@ -770,17 +772,17 @@ type
   public
     constructor Create;
     function Eval(Expr: TPasExpr; Flags: TResEvalFlags): TResEvalValue;
-    function IsInRange(Expr, RangeExpr: TPasExpr; EmitHints: boolean): boolean;
+    function IsInRange(Expr, RangeExpr: TPasExpr; EmitHints: boolean): boolean; overload;
     function IsInRange(Value: TResEvalValue; ValueExpr: TPasExpr;
-      RangeValue: TResEvalValue; RangeExpr: TPasExpr; EmitHints: boolean): boolean;
+      RangeValue: TResEvalValue; RangeExpr: TPasExpr; EmitHints: boolean): boolean; overload;
     function IsSetCompatible(Value: TResEvalValue; ValueExpr: TPasExpr;
       RangeValue: TResEvalValue; EmitHints: boolean): boolean;
     function IsConst(Expr: TPasExpr): boolean;
     function IsSimpleExpr(Expr: TPasExpr): boolean; // true = no need to store result
     procedure EmitRangeCheckConst(id: TMaxPrecInt; const aValue, MinVal, MaxVal: String;
-      PosEl: TPasElement; MsgType: TMessageType = mtWarning); virtual;
+      PosEl: TPasElement; MsgType: TMessageType = mtWarning); overload; virtual;
     procedure EmitRangeCheckConst(id: TMaxPrecInt; const aValue: String;
-      MinVal, MaxVal: TMaxPrecInt; PosEl: TPasElement; MsgType: TMessageType = mtWarning);
+      MinVal, MaxVal: TMaxPrecInt; PosEl: TPasElement; MsgType: TMessageType = mtWarning); overload;
     function ChrValue(Value: TResEvalValue; ErrorEl: TPasElement): TResEvalValue; virtual;
     function OrdValue(Value: TResEvalValue; ErrorEl: TPasElement): TResEvalValue; virtual;
     function StringToOrd(Value: TResEvalValue; PosEl: TPasElement): longword; virtual;
@@ -1175,7 +1177,11 @@ begin
     if f in Flags then
       begin
       if Result<>'' then Result:=Result+',';
+      {$IFDEF DCC}
+      s := Result+TRttiEnumerationType.GetName(f);
+      {$ELSE}
       str(f,s);
+      {$ENDIF}
       Result:=Result+s;
       end;
   Result:='['+Result+']';
@@ -5153,10 +5159,14 @@ begin
         end;
       case Value.Kind of
       revkBool:
+        {$IFDEF DCC}
+        ValStr := BoolToStr(TResEvalBool(Value).B);
+        {$ELSE}
         if Format1<0 then
           str(TResEvalBool(Value).B,ValStr)
         else
           str(TResEvalBool(Value).B:Format1,ValStr);
+        {$ENDIF}
       revkInt:
         if Format1<0 then
           str(TResEvalInt(Value).Int,ValStr)
@@ -5540,7 +5550,7 @@ begin
   if Value.UInt=HighIntAsUInt then
     begin
     EmitRangeCheckConst(20170624142921,IntToStr(Value.UInt),
-      IntToStr(low(TMaxPrecUInt)),IntToStr(pred(high(TMaxPrecUInt))),ErrorEl);
+      IntToStr(low(TMaxPrecUInt)),IntToStr(high(TMaxPrecUInt)),ErrorEl);
     Value.UInt:=low(Value.UInt);
     end
   else
@@ -5699,7 +5709,11 @@ end;
 
 function TResEvalValue.AsDebugString: string;
 begin
+  {$IFDEF DCC}
+  Result:=TRttiEnumerationType.GetName(Kind);
+  {$ELSE}
   str(Kind,Result);
+  {$ENDIF}
   Result:=Result+'='+AsString;
 end;
 
@@ -5709,7 +5723,11 @@ begin
     revkNone: Result:='<None>';
     revkNil: Result:='nil';
   else
+    {$IFDEF DCC}
+    Result := TRttiEnumerationType.GetName(Kind);
+    {$ELSE}
     str(Kind,Result);
+    {$ENDIF}
   end;
 end;
 
@@ -5792,7 +5810,11 @@ begin
     Result:=inherited AsDebugString
   else
     begin
+    {$IFDEF DCC}
+    Result := TRttiEnumerationType.GetName(Kind);
+    {$ELSE}
     str(Kind,Result);
+    {$ENDIF}
     case Typed of
       reitByte: Result:=Result+':byte';
       reitShortInt: Result:=Result+':shortint';
@@ -5982,7 +6004,11 @@ end;
 
 function TResEvalEnum.AsDebugString: string;
 begin
+  {$IFDEF DCC}
+  Result:=TRttiEnumerationType.GetName(Kind);
+  {$ELSE}
   str(Kind,Result);
+  {$ENDIF}
   Result:=Result+'='+AsString+'='+IntToStr(Index);
 end;
 
@@ -6040,8 +6066,13 @@ function TResEvalRangeInt.AsDebugString: string;
 var
   s: string;
 begin
+  {$IFDEF DCC}
+  Result := TRttiEnumerationType.GetName(Kind);
+  s := TRttiEnumerationType.GetName(ElKind);
+  {$ELSE}
   str(Kind,Result);
   str(ElKind,s);
+  {$ENDIF}
   Result:=Result+'/'+s+':'+GetObjName(ElType)+'='+AsString;
 end;
 
@@ -6155,7 +6186,7 @@ end;
 
 function TResEvalSet.Add(aRangeStart, aRangeEnd: TMaxPrecInt): boolean;
 
-  {$IF FPC_FULLVERSION<30101}
+  {$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION<30101)}
   procedure Insert(const Item: TItem; var Items: TItems; Index: integer);
   var
     i: Integer;

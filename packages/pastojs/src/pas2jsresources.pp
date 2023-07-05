@@ -1,15 +1,21 @@
 unit pas2jsresources;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
   Classes, SysUtils,
+  {$IFDEF DCC}
+  Delphi.Helper,
+  {$ELSE}
   {$IFDEF pas2js}
   web,
   {$ELSE}
   base64,
+  {$ENDIF}
   {$ENDIF}
   pas2jsfs, jsTree;
 

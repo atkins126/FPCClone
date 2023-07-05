@@ -1,4 +1,4 @@
-{
+﻿{
     This file is part of the Free Component Library
 
     Pascal resolver
@@ -321,7 +321,7 @@ uses
   {$ENDIF}
   {$endif}
   Classes, SysUtils, Math, Types, contnrs,
-  PasTree, PScanner, PParser, PasResolveEval;
+  PasTree, PScanner, PParser, PasResolveEval{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 const
   ParserMaxEmbeddedColumn = 2048;
@@ -2092,9 +2092,9 @@ type
     function FindElement(const aName: String): TPasElement; override;  // used by TPasParser
     function FindElementFor(const aName: String; AParent: TPasElement; TypeParamCount: integer): TPasElement; override; // used by TPasParser
     function FindElementWithoutParams(const AName: String; ErrorPosEl: TPasElement;
-      NoProcsWithArgs, NoGenerics: boolean): TPasElement;
+      NoProcsWithArgs, NoGenerics: boolean): TPasElement; overload;
     function FindElementWithoutParams(const AName: String; out Data: TPRFindData;
-      ErrorPosEl: TPasElement; NoProcsWithArgs, NoGenerics: boolean): TPasElement;
+      ErrorPosEl: TPasElement; NoProcsWithArgs, NoGenerics: boolean): TPasElement; overload;
     function FindFirstEl(const AName: String; out Data: TPRFindData;
       ErrorPosEl: TPasElement): TPasElement;
     procedure FindLongestUnitName(var El: TPasElement; Expr: TPasExpr);
@@ -2310,9 +2310,9 @@ type
     function GetProcTypeDescription(ProcType: TPasProcedureType;
       Flags: TPRProcTypeDescFlags = [prptdUseName,prptdResolveSimpleAlias]): string;
     function GetResolverResultDescription(const T: TPasResolverResult; OnlyType: boolean = false): string;
-    function GetTypeDescription(aType: TPasType; AddPath: boolean = false): string;
-    function GetTypeDescription(const R: TPasResolverResult; AddPath: boolean = false): string; virtual;
-    function GetBaseDescription(const R: TPasResolverResult; AddPath: boolean = false): string; virtual;
+    function GetTypeDescription(aType: TPasType; AddPath: boolean = false): string; overload;
+    function GetTypeDescription(const R: TPasResolverResult; AddPath: boolean = false): string; overload; virtual;
+    function GetBaseDescription(const R: TPasResolverResult; AddPath: boolean = false): string; overload; virtual;
     function GetProcFirstImplEl(Proc: TPasProcedure): TPasImplElement;
     function GetProcTemplateTypes(Proc: TPasProcedure): TFPList; // list of TPasGenericTemplateType
     function GetProcName(Proc: TPasProcedure; WithTemplates: boolean = true): string;
@@ -2503,7 +2503,7 @@ function LastDottedIdentifier(const Identifier: string): string; // without <>
 function IsDottedIdentifierPrefix(const Prefix, Identifier: string): boolean;
 function GetFirstDotPos(const Identifier: string): integer;
 function GetLastDotPos(const Identifier: string): integer;
-{$IF FPC_FULLVERSION<30101}
+{$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION<30101)}
 function IsValidIdent(const Ident: string; AllowDots: Boolean = False; StrictDots: Boolean = False): Boolean;
 {$ENDIF}
 function DotExprToName(Expr: TPasExpr): string;
@@ -2721,7 +2721,11 @@ begin
   for f in Flags do
     begin
     if Result<>'' then Result:=Result+',';
+    {$IFDEF DCC}
+    s:=TRttiEnumerationType.GetName(f);
+    {$ELSE}
     str(f,s);
+    {$ENDIF}
     Result:=Result+s;
     end;
   Result:='['+Result+']';
@@ -3116,7 +3120,7 @@ begin
   Result:=o;
 end;
 
-{$IF FPC_FULLVERSION<30101}
+{$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION<30101)}
 function IsValidIdent(const Ident: string; AllowDots: Boolean;
   StrictDots: Boolean): Boolean;
 const
@@ -3164,7 +3168,11 @@ begin
     if f in Flags then
       begin
       if Result<>'' then Result:=Result+',';
+      {$IFDEF DCC}
+      s:=TRttiEnumerationType.GetName(f);
+      {$ELSE}
       str(f,s);
+      {$ENDIF}
       Result:=Result+s;
       end;
   Result:='['+Result+']';
@@ -3172,7 +3180,11 @@ end;
 
 function dbgs(const a: TResolvedRefAccess): string;
 begin
+{$IFDEF DCC}
+  Result := TRttiEnumerationType.GetName(a);
+{$ELSE}
   str(a,Result);
+{$ENDIF}
 end;
 
 function dbgs(const Flags: TResolvedReferenceFlags): string;
@@ -3185,7 +3197,11 @@ begin
     if f in Flags then
       begin
       if Result<>'' then Result:=Result+',';
+      {$IFDEF DCC}
+      s:=TRttiEnumerationType.GetName(f);
+      {$ELSE}
       str(f,s);
+      {$ENDIF}
       Result:=Result+s;
       end;
   Result:='['+Result+']';
@@ -3193,7 +3209,11 @@ end;
 
 function dbgs(const a: TPSRefAccess): string;
 begin
+{$IFDEF DCC}
+  Result := TRttiEnumerationType.GetName(a);
+{$ELSE}
   str(a,Result);
+{$ENDIF}
 end;
 
 { TPasResolverHub }
@@ -3592,7 +3612,7 @@ end;
 procedure TPasScopeReferences.Clear;
 begin
   if References=nil then exit;
-  References.ForEachCall(@OnClearItem,nil);
+  References.ForEachCall(OnClearItem,nil);
   References.Clear;
 end;
 
@@ -3688,7 +3708,7 @@ function TPasScopeReferences.GetList: TFPList;
 begin
   Result:=TFPList.Create;
   if References=nil then exit;
-  References.ForEachCall(@OnCollectItem,Result);
+  References.ForEachCall({$IFDEF FPC}@{$ENDIF}OnCollectItem,Result);
 end;
 
 { TPasPropertyScope }
@@ -4032,7 +4052,7 @@ var
   function Iterate(Scope: TPasIdentifierScope): boolean;
   begin
     if Scope=nil then exit(false);
-    Scope.IterateLocalElements(aName,StartScope,@OnInternalIterate,@FilterData,Abort);
+    Scope.IterateLocalElements(aName,StartScope,{$IFDEF FPC}@{$ENDIF}OnInternalIterate,@FilterData,Abort);
     Result:=Abort;
   end;
 
@@ -4130,7 +4150,7 @@ begin
     {$IFDEF VerbosePasResolver}
     writeln('TPasSectionScope.IterateElements "',aName,'" in used unit ',UsesScope.Element.ParentPath,':',GetObjName(UsesScope.Element));
     {$ENDIF}
-    UsesScope.IterateLocalElements(aName,StartScope,@OnInternalIterate,@FilterData,Abort);
+    UsesScope.IterateLocalElements(aName,StartScope,{$IFDEF FPC}@{$ENDIF}OnInternalIterate,@FilterData,Abort);
     if Abort then exit;
     end;
 end;
@@ -4148,7 +4168,7 @@ begin
     begin
     UsesScope:=TPasIdentifierScope(UsesScopes[i]);
     writeln(Prefix+'  Uses: '+GetObjName(UsesScope.Element)+' "'+UsesScope.Element.GetModule.Name+'"');
-    UsesScope.FItems.ForEachCall(@OnWriteItem,Pointer(SubPrefix));
+    UsesScope.FItems.ForEachCall({$IFDEF FPC}@{$ENDIF}OnWriteItem,Pointer(SubPrefix));
     end;
   {AllowWriteln-}
 end;
@@ -4246,7 +4266,7 @@ begin
   if aName='' then ;
   if StartScope=nil then ;
   if Data=nil then ;
-  if OnIterateElement=nil then ;
+  if Assigned(OnIterateElement) then ;
   if Abort then ;
 end;
 
@@ -4342,13 +4362,13 @@ begin
   if Index>=0 then
     begin
     // insert LIFO - last in, first out
-    OldItem:=TPasIdentifier(FItems.List^[Index].Data);
+    OldItem:=TPasIdentifier(FItems{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF});
     {$IFDEF VerbosePasResolver}
     if lowercase(OldItem.Identifier)<>LoName then
       raise Exception.Create('20160925183438');
     {$ENDIF}
     Item.NextSameIdentifier:=OldItem;
-    FItems.List^[Index].Data:=Item;
+    FItems{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF}:=Item;
     end
   else
     begin
@@ -4381,7 +4401,7 @@ begin
   writeln('TPasIdentifierScope.Clear START ',ClassName);
   {$ENDIF}
 
-  FItems.ForEachCall(@OnClearItem,nil);
+  FItems.ForEachCall({$IFDEF FPC}@{$ENDIF}OnClearItem,nil);
 
   {$ifdef pas2js}
   if FreeItems then
@@ -4526,13 +4546,13 @@ end;
 
 procedure TPasIdentifierScope.WriteLocalIdentifiers(Prefix: string);
 begin
-  FItems.ForEachCall(@OnWriteItem,Pointer(Prefix));
+  FItems.ForEachCall({$IFDEF FPC}@{$ENDIF}OnWriteItem,Pointer(Prefix));
 end;
 
 function TPasIdentifierScope.GetLocalIdentifiers: TFPList;
 begin
   Result:=TFPList.Create;
-  FItems.ForEachCall(@OnCollectItem,Result);
+  FItems.ForEachCall({$IFDEF FPC}@{$ENDIF}OnCollectItem,Result);
 end;
 
 { TPasResolver }
@@ -5627,9 +5647,9 @@ begin
   Abort:=false;
   //writeln('TPasResolver.FindProcSameSignature ',ProcName,' OnlyLocal=',OnlyLocal);
   if OnlyLocal then
-    Scope.IterateLocalElements(ProcName,Scope,@OnFindProcDeclaration,@FindData,Abort)
+    Scope.IterateLocalElements(ProcName,Scope,{$IFDEF FPC}@{$ENDIF}OnFindProcDeclaration,@FindData,Abort)
   else
-    Scope.IterateElements(ProcName,Scope,@OnFindProcDeclaration,@FindData,Abort);
+    Scope.IterateElements(ProcName,Scope,{$IFDEF FPC}@{$ENDIF}OnFindProcDeclaration,@FindData,Abort);
   Result:=FindData.Found;
 end;
 
@@ -5647,8 +5667,8 @@ begin
     if CurrentParser.Scanner<>nil then
       begin
       Scanner:=CurrentParser.Scanner;
-      if (Scanner.OnWarnDirective=nil) then
-        Scanner.OnWarnDirective:=@ScannerWarnDirective;
+      if Assigned(Scanner.OnWarnDirective) then
+        Scanner.OnWarnDirective:={$IFDEF FPC}@{$ENDIF}ScannerWarnDirective;
       Scanner.SetNonToken(tkself);
       end;
     end;
@@ -6072,7 +6092,7 @@ procedure TPasResolver.FinishTypeSectionEl(El: TPasType);
     Data:=Default(TPRFindData);
     Data.ErrorPosEl:=ErrorEl;
     (TopScope as TPasIdentifierScope).IterateElements(DestName,
-      TopScope,@OnFindFirst,@Data,Abort);
+      TopScope,{$IFDEF FPC}@{$ENDIF}OnFindFirst,@Data,Abort);
     //writeln('ReplaceDestType ',GetObjName(El),' DestType=',GetObjName(DestType),' DestType.Parent=',GetObjName(DestType.Parent),' RefCount=',DestType.RefCount);
     if Data.Found=nil then
       if MustExist then
@@ -6471,7 +6491,7 @@ begin
             FindData.Args:=IntfProc.ProcType.Args;
             FindData.Kind:=fpkProcDeclaration;
             Abort:=false;
-            IterateElements(ProcName,@OnFindProcDeclaration,@FindData,Abort);
+            IterateElements(ProcName,{$IFDEF FPC}@{$ENDIF}OnFindProcDeclaration,@FindData,Abort);
             if FindData.Found=nil then
               RaiseMsg(20180322143202,nNoMatchingImplForIntfMethodXFound,
                 sNoMatchingImplForIntfMethodXFound,
@@ -7281,7 +7301,7 @@ begin
       FindData.Args:=Proc.ProcType.Args;
       FindData.Kind:=fpkProc;
       Abort:=false;
-      IterateElements(ProcName,@OnFindProc,@FindData,Abort);
+      IterateElements(ProcName,{$IFDEF FPC}@{$ENDIF}OnFindProc,@FindData,Abort);
       end;
     end
   else if El.Name<>'' then
@@ -7368,7 +7388,7 @@ begin
     FindData.Kind:=fpkMethod;
     Abort:=false;
     ParentScope.IterateElements(Proc.Name,ClassOrRecScope,
-                                @OnFindProc,@FindData,Abort);
+                                {$IFDEF FPC}@{$ENDIF}OnFindProc,@FindData,Abort);
     end;
 
   if FindData.Found=nil then
@@ -8750,12 +8770,11 @@ begin
   for i:=0 to aClass.Modifiers.Count-1 do
     begin
     aModifier:=lowercase(aClass.Modifiers[i]);
-    case aModifier of
-    'sealed': IsSealed:=true;
-    'abstract': ;
+    if aModifier = 'sealed' then
+      IsSealed:=true
+    else if aModifier = 'abstract' then
     else
       RaiseMsg(20170320190619,nIllegalQualifier,sIllegalQualifier,[aClass.Modifiers[i]],aClass);
-    end;
     end;
 
   AncestorClassEl:=nil;
@@ -9613,7 +9632,11 @@ begin
   if IsOverride then
     begin
     // override/class-intf-impl: calling conventions must match
+    {$IFDEF DCC}
+    NewImplPTMods:=TProcTypeModifiers(Byte(ImplPTMods) xor Byte(DeclPTMods));
+    {$ELSE}
     NewImplPTMods:=ImplPTMods><DeclPTMods;
+    {$ENDIF}
     for ptm in NewImplPTMods do
       RaiseMsg(20201227213020,nXModifierMismatchY,sXModifierMismatchY,
         ['procedure type',ProcTypeModifiers[ptm]],ImplProc.ProcType);
@@ -10679,7 +10702,7 @@ end;
 procedure TPasResolver.ResolveSubIdent(El: TBinaryExpr;
   Access: TResolvedRefAccess);
 
-  procedure ResolveRight; inline;
+  procedure ResolveRight;
   begin
     ResolveExpr(El.Right,Access);
     PopScope;
@@ -10963,7 +10986,7 @@ procedure TPasResolver.ResolveFuncParamsExprName(NameExpr: TPasExpr;
     FindCallData.List:=TFPList.Create;
     try
       Abort:=false;
-      IterateElements(CallName,@OnFindCallElements,@FindCallData,Abort);
+      IterateElements(CallName,{$IFDEF FPC}@{$ENDIF}OnFindCallElements,@FindCallData,Abort);
       Msg:='';
       for i:=0 to FindCallData.List.Count-1 do
         begin
@@ -11071,7 +11094,7 @@ begin
   else
     TemplParamsCnt:=0;
   Abort:=false;
-  IterateElements(CallName,@OnFindCallElements,@FindCallData,Abort);
+  IterateElements(CallName,{$IFDEF FPC}@{$ENDIF}OnFindCallElements,@FindCallData,Abort);
   FoundEl:=FindCallData.Found;
   if FoundEl=nil then
     RaiseIdentifierNotFound(20170216152544,CallName,NameExpr);
@@ -11744,7 +11767,7 @@ function TPasResolver.ResolveAccessor(Expr: TPasExpr): TPasElement;
     FindData:=Default(TPRFindData);
     FindData.ErrorPosEl:=Expr;
     Abort:=false;
-    Scope.IterateElements(Prim.Value,Scope,@OnFindFirst,@FindData,Abort);
+    Scope.IterateElements(Prim.Value,Scope,{$IFDEF FPC}@{$ENDIF}OnFindFirst,@FindData,Abort);
     Result:=FindData.Found;
     if Result=nil then
       RaiseIdentifierNotFound(20170216151749,Prim.Value,Prim);
@@ -15712,7 +15735,7 @@ begin
           {$IFDEF VerbosePasResEval}
           writeln('TPasResolver.OnExprEvalParams Calling BuiltInProc ',Decl.Name,' ',ResolverBuiltInProcNames[BuiltInProc.BuiltIn]);
           {$ENDIF}
-          if BuiltInProc.Eval<>nil then
+          if Assigned(BuiltInProc.Eval) then
             BuiltInProc.Eval(BuiltInProc,Params,Flags,Result)
           else
             case BuiltInProc.BuiltIn of
@@ -21051,10 +21074,10 @@ begin
   FScopeClass_Section:=TPasSectionScope;
   FScopeClass_WithExpr:=TPasWithExprScope;
   fExprEvaluator:=TResExprEvaluator.Create;
-  fExprEvaluator.OnLog:=@OnExprEvalLog;
-  fExprEvaluator.OnEvalIdentifier:=@OnExprEvalIdentifier;
-  fExprEvaluator.OnEvalParams:=@OnExprEvalParams;
-  fExprEvaluator.OnRangeCheckEl:=@OnRangeCheckEl;
+  fExprEvaluator.OnLog:={$IFDEF FPC}@{$ENDIF}OnExprEvalLog;
+  fExprEvaluator.OnEvalIdentifier:={$IFDEF FPC}@{$ENDIF}OnExprEvalIdentifier;
+  fExprEvaluator.OnEvalParams:={$IFDEF FPC}@{$ENDIF}OnExprEvalParams;
+  fExprEvaluator.OnRangeCheckEl:={$IFDEF FPC}@{$ENDIF}OnRangeCheckEl;
   PushScope(FDefaultScope);
 end;
 
@@ -21465,7 +21488,7 @@ begin
   Data:=Default(TPRFindData);
   Data.ErrorPosEl:=ErrorPosEl;
   Data.SkipGenerics:=NoGenerics;
-  IterateElements(AName,@OnFindFirst_PreferNoParams,@Data,Abort);
+  IterateElements(AName,{$IFDEF FPC}@{$ENDIF}OnFindFirst_PreferNoParams,@Data,Abort);
   Result:=Data.Found;
   if Result=nil then
     begin
@@ -21506,7 +21529,7 @@ begin
   Abort:=false;
   Data:=Default(TPRFindData);
   Data.ErrorPosEl:=ErrorPosEl;
-  IterateElements(AName,@OnFindFirst,@Data,Abort);
+  IterateElements(AName,{$IFDEF FPC}@{$ENDIF}OnFindFirst,@Data,Abort);
   Result:=Data.Found;
 end;
 
@@ -21593,7 +21616,7 @@ begin
   Data.TemplateCount:=TemplateCount;
   Data.Find.ErrorPosEl:=ErrorPosEl;
   Abort:=false;
-  IterateElements(AName,@OnFindFirst_GenericEl,@Data,Abort);
+  IterateElements(AName,{$IFDEF FPC}@{$ENDIF}OnFindFirst_GenericEl,@Data,Abort);
   Find:=Data.Find;
   Result:=Find.Found;
   if Result=nil then
@@ -22301,9 +22324,9 @@ var
   bp: TResolverBuiltInProc;
 begin
   ClearResolveDataList(lkBuiltIn);
-  for bt in TResolverBaseType do
+  for bt := Low(TResolverBaseType) to High(TResolverBaseType) do
     FBaseTypes[bt]:=nil;
-  for bp in TResolverBuiltInProc do
+  for bp := Low(TResolverBuiltInProc) to High(TResolverBuiltInProc) do
     FBuiltInProcs[bp]:=nil;
 end;
 
@@ -22317,133 +22340,137 @@ begin
     AddBaseType(BaseTypeNames[bt],bt);
   if bfLength in TheBaseProcs then
     AddBuiltInProc('Length','function Length(const String or Array): sizeint',
-        @BI_Length_OnGetCallCompatibility,@BI_Length_OnGetCallResult,
-        @BI_Length_OnEval,nil,bfLength);
+        {$IFDEF FPC}@{$ENDIF}BI_Length_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_Length_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_Length_OnEval,nil,bfLength);
   if bfSetLength in TheBaseProcs then
     AddBuiltInProc('SetLength','procedure SetLength(var String or Array; NewLength: sizeint)',
-        @BI_SetLength_OnGetCallCompatibility,nil,nil,
-        @BI_SetLength_OnFinishParamsExpr,bfSetLength,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_SetLength_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_SetLength_OnFinishParamsExpr,bfSetLength,[bipfCanBeStatement]);
   if bfInclude in TheBaseProcs then
     AddBuiltInProc('Include','procedure Include(var Set of Enum; const Enum)',
-        @BI_InExclude_OnGetCallCompatibility,nil,nil,
-        @BI_InExclude_OnFinishParamsExpr,bfInclude,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_InExclude_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_InExclude_OnFinishParamsExpr,bfInclude,[bipfCanBeStatement]);
   if bfExclude in TheBaseProcs then
     AddBuiltInProc('Exclude','procedure Exclude(var Set of Enum; const Enum)',
-        @BI_InExclude_OnGetCallCompatibility,nil,nil,
-        @BI_InExclude_OnFinishParamsExpr,bfExclude,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_InExclude_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_InExclude_OnFinishParamsExpr,bfExclude,[bipfCanBeStatement]);
   if bfBreak in TheBaseProcs then
     AddBuiltInProc('Break','procedure Break',
-        @BI_Break_OnGetCallCompatibility,nil,nil,nil,bfBreak,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Break_OnGetCallCompatibility,nil,nil,nil,bfBreak,[bipfCanBeStatement]);
   if bfContinue in TheBaseProcs then
     AddBuiltInProc('Continue','procedure Continue',
-        @BI_Continue_OnGetCallCompatibility,nil,nil,nil,bfContinue,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Continue_OnGetCallCompatibility,nil,nil,nil,bfContinue,[bipfCanBeStatement]);
   if bfExit in TheBaseProcs then
     AddBuiltInProc('Exit','procedure Exit(result)',
-        @BI_Exit_OnGetCallCompatibility,nil,nil,nil,bfExit,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Exit_OnGetCallCompatibility,nil,nil,nil,bfExit,[bipfCanBeStatement]);
   if bfInc in TheBaseProcs then
     AddBuiltInProc('Inc','procedure Inc(var Integer; const Incr: Integer = 1)',
-        @BI_IncDec_OnGetCallCompatibility,nil,nil,
-        @BI_IncDec_OnFinishParamsExpr,bfInc,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_IncDec_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_IncDec_OnFinishParamsExpr,bfInc,[bipfCanBeStatement]);
   if bfDec in TheBaseProcs then
     AddBuiltInProc('Dec','procedure Dec(var Integer; const Decr: Integer = 1)',
-        @BI_IncDec_OnGetCallCompatibility,nil,nil,
-        @BI_IncDec_OnFinishParamsExpr,bfDec,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_IncDec_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_IncDec_OnFinishParamsExpr,bfDec,[bipfCanBeStatement]);
   if bfAssigned in TheBaseProcs then
     AddBuiltInProc('Assigned','function Assigned(const Pointer or Class or Class-of): boolean',
-        @BI_Assigned_OnGetCallCompatibility,@BI_Assigned_OnGetCallResult,
-        nil,@BI_Assigned_OnFinishParamsExpr,bfAssigned);
+        {$IFDEF FPC}@{$ENDIF}BI_Assigned_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_Assigned_OnGetCallResult,
+        nil,{$IFDEF FPC}@{$ENDIF}BI_Assigned_OnFinishParamsExpr,bfAssigned);
   if bfChr in TheBaseProcs then
     AddBuiltInProc('Chr','function Chr(const Integer): char',
-        @BI_Chr_OnGetCallCompatibility,@BI_Chr_OnGetCallResult,
-        @BI_Chr_OnEval,nil,bfChr);
+        {$IFDEF FPC}@{$ENDIF}BI_Chr_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_Chr_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_Chr_OnEval,nil,bfChr);
   if bfOrd in TheBaseProcs then
     AddBuiltInProc('Ord','function Ord(const Enum or Char): integer',
-        @BI_Ord_OnGetCallCompatibility,@BI_Ord_OnGetCallResult,
-        @BI_Ord_OnEval,nil,bfOrd);
+        {$IFDEF FPC}@{$ENDIF}BI_Ord_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_Ord_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_Ord_OnEval,nil,bfOrd);
   if bfLow in TheBaseProcs then
     AddBuiltInProc('Low','function Low(const array or ordinal): ordinal or integer',
-        @BI_LowHigh_OnGetCallCompatibility,@BI_LowHigh_OnGetCallResult,
-        @BI_LowHigh_OnEval,nil,bfLow);
+        {$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnEval,nil,bfLow);
   if bfHigh in TheBaseProcs then
     AddBuiltInProc('High','function High(const array or ordinal): ordinal or integer',
-        @BI_LowHigh_OnGetCallCompatibility,@BI_LowHigh_OnGetCallResult,
-        @BI_LowHigh_OnEval,nil,bfHigh);
+        {$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_LowHigh_OnEval,nil,bfHigh);
   if bfPred in TheBaseProcs then
     AddBuiltInProc('Pred','function Pred(const ordinal): ordinal',
-        @BI_PredSucc_OnGetCallCompatibility,@BI_PredSucc_OnGetCallResult,
-        @BI_PredSucc_OnEval,nil,bfPred);
+        {$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnEval,nil,bfPred);
   if bfSucc in TheBaseProcs then
     AddBuiltInProc('Succ','function Succ(const ordinal): ordinal',
-        @BI_PredSucc_OnGetCallCompatibility,@BI_PredSucc_OnGetCallResult,
-        @BI_PredSucc_OnEval,nil,bfSucc);
+        {$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_PredSucc_OnEval,nil,bfSucc);
   if bfStrProc in TheBaseProcs then
     AddBuiltInProc('Str','procedure Str(const var; var String)',
-        @BI_StrProc_OnGetCallCompatibility,nil,nil,
-        @BI_StrProc_OnFinishParamsExpr,bfStrProc,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_StrProc_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_StrProc_OnFinishParamsExpr,bfStrProc,[bipfCanBeStatement]);
   if bfStrFunc in TheBaseProcs then
     AddBuiltInProc('Str','function Str(const var): String',
-        @BI_StrFunc_OnGetCallCompatibility,@BI_StrFunc_OnGetCallResult,
-        @BI_StrFunc_OnEval,nil,bfStrFunc);
+        {$IFDEF FPC}@{$ENDIF}BI_StrFunc_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}
+        BI_StrFunc_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_StrFunc_OnEval,nil,bfStrFunc);
   if bfWriteStr in TheBaseProcs then
     AddBuiltInProc('WriteStr','procedure WriteStr(out String; params...)',
-        @BI_WriteStrProc_OnGetCallCompatibility,nil,nil,
-        @BI_WriteStrProc_OnFinishParamsExpr,bfWriteStr,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_WriteStrProc_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_WriteStrProc_OnFinishParamsExpr,bfWriteStr,[bipfCanBeStatement]);
   if bfVal in TheBaseProcs then
     AddBuiltInProc('Val','procedure Val(const String; var Value: bool|int|float|enum; out Int)',
-        @BI_Val_OnGetCallCompatibility,nil,nil,
-        @BI_Val_OnFinishParamsExpr,bfVal,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Val_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_Val_OnFinishParamsExpr,bfVal,[bipfCanBeStatement]);
   if bfLo in TheBaseProcs then
     AddBuiltInProc('Lo','function Lo(X: any integer type): Byte|Word)',
-      @BI_LoHi_OnGetCallCompatibility,@BI_LoHi_OnGetCallResult,
-      @BI_LoHi_OnEval,nil,bfLo);
+      {$IFDEF FPC}@{$ENDIF}BI_LoHi_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_LoHi_OnGetCallResult,
+      {$IFDEF FPC}@{$ENDIF}BI_LoHi_OnEval,nil,bfLo);
   if bfHi in TheBaseProcs then
     AddBuiltInProc('Hi','function Hi(X: any integer type): Byte|Word)',
-      @BI_LoHi_OnGetCallCompatibility,@BI_LoHi_OnGetCallResult,
-      @BI_LoHi_OnEval,nil,bfHi);
+      {$IFDEF FPC}@{$ENDIF}BI_LoHi_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_LoHi_OnGetCallResult,
+      {$IFDEF FPC}@{$ENDIF}BI_LoHi_OnEval,nil,bfHi);
   if bfConcatArray in TheBaseProcs then
     AddBuiltInProc('Concat','function Concat(const Array1, Array2, ...): Array',
-        @BI_ConcatArray_OnGetCallCompatibility,@BI_ConcatArray_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_ConcatArray_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}
+        BI_ConcatArray_OnGetCallResult,
         nil,nil,bfConcatArray);
   if bfConcatString in TheBaseProcs then
     AddBuiltInProc('Concat','function Concat(const String1, String2, ...): String',
-        @BI_ConcatString_OnGetCallCompatibility,@BI_ConcatString_OnGetCallResult,
-        @BI_ConcatString_OnEval,nil,bfConcatString);
+        {$IFDEF FPC}@{$ENDIF}BI_ConcatString_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_ConcatString_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_ConcatString_OnEval,nil,bfConcatString);
   if bfCopyArray in TheBaseProcs then
     AddBuiltInProc('Copy','function Copy(const Array; Start: integer = 0; Count: integer = all): Array',
-        @BI_CopyArray_OnGetCallCompatibility,@BI_CopyArray_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_CopyArray_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_CopyArray_OnGetCallResult,
         nil,nil,bfCopyArray);
   if bfInsertArray in TheBaseProcs then
     AddBuiltInProc('Insert','procedure Insert(const Element; var Array; Index: integer)',
-        @BI_InsertArray_OnGetCallCompatibility,nil,nil,
-        @BI_InsertArray_OnFinishParamsExpr,bfInsertArray,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_InsertArray_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_InsertArray_OnFinishParamsExpr,bfInsertArray,[bipfCanBeStatement]);
   if bfDeleteArray in TheBaseProcs then
     AddBuiltInProc('Delete','procedure Delete(var Array; Start, Count: integer)',
-        @BI_DeleteArray_OnGetCallCompatibility,nil,nil,
-        @BI_DeleteArray_OnFinishParamsExpr,bfDeleteArray,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_DeleteArray_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}
+        BI_DeleteArray_OnFinishParamsExpr,bfDeleteArray,[bipfCanBeStatement]);
   if bfTypeInfo in TheBaseProcs then
     AddBuiltInProc('TypeInfo','function TypeInfo(type or var identifier): Pointer',
-        @BI_TypeInfo_OnGetCallCompatibility,@BI_TypeInfo_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_TypeInfo_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_TypeInfo_OnGetCallResult,
         nil,nil,bfTypeInfo);
   if bfGetTypeKind in TheBaseProcs then
     AddBuiltInProc('GetTypeKind','function GetTypeKind(type or var identifier): System.TTypeKind',
-        @BI_GetTypeKind_OnGetCallCompatibility,@BI_GetTypeKind_OnGetCallResult,
-        @BI_GetTypeKind_OnEval,nil,bfGetTypeKind);
+        {$IFDEF FPC}@{$ENDIF}BI_GetTypeKind_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_GetTypeKind_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_GetTypeKind_OnEval,nil,bfGetTypeKind);
   if bfAssert in TheBaseProcs then
     AddBuiltInProc('Assert','procedure Assert(bool[,string])',
-        @BI_Assert_OnGetCallCompatibility,nil,nil,
-        @BI_Assert_OnFinishParamsExpr,bfAssert,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Assert_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_Assert_OnFinishParamsExpr,bfAssert,[bipfCanBeStatement]);
   if bfNew in TheBaseProcs then
     AddBuiltInProc('New','procedure New(out ^record)',
-        @BI_New_OnGetCallCompatibility,nil,nil,
-        @BI_New_OnFinishParamsExpr,bfNew,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_New_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}
+        BI_New_OnFinishParamsExpr,bfNew,[bipfCanBeStatement]);
   if bfDispose in TheBaseProcs then
     AddBuiltInProc('Dispose','procedure Dispose(var ^record)',
-        @BI_Dispose_OnGetCallCompatibility,nil,nil,
-        @BI_Dispose_OnFinishParamsExpr,bfDispose,[bipfCanBeStatement]);
+        {$IFDEF FPC}@{$ENDIF}BI_Dispose_OnGetCallCompatibility,nil,nil,
+        {$IFDEF FPC}@{$ENDIF}BI_Dispose_OnFinishParamsExpr,bfDispose,[bipfCanBeStatement]);
   if bfDefault in TheBaseProcs then
     AddBuiltInProc('Default','function Default(T): T',
-        @BI_Default_OnGetCallCompatibility,@BI_Default_OnGetCallResult,
-        @BI_Default_OnEval,nil,bfDefault,[]);
+        {$IFDEF FPC}@{$ENDIF}BI_Default_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_Default_OnGetCallResult,
+        {$IFDEF FPC}@{$ENDIF}BI_Default_OnEval,nil,bfDefault,[]);
 end;
 
 function TPasResolver.AddBaseType(const aName: string; Typ: TResolverBaseType
@@ -23529,7 +23556,7 @@ class function TPasResolver.GetWarnIdentifierNumbers(Identifier: string; out
 
   procedure SetNumber(Number: integer);
   begin
-    {$IF FPC_FULLVERSION>=30101}
+    {$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION>=30101)}
     MsgNumbers:=[Number];
     {$ELSE}
     Setlength(MsgNumbers,1);
@@ -23551,16 +23578,16 @@ begin
   if Identifier[1] in ['0'..'9'] then exit(false);
 
   Result:=true;
-  case UpperCase(Identifier) of
+  Identifier := UpperCase(Identifier);
   // FPC:
-  'CONSTRUCTING_ABSTRACT': SetNumber(nConstructingClassXWithAbstractMethodY); //  Constructing an instance of a class with abstract methods.
+  if Identifier = 'CONSTRUCTING_ABSTRACT' then SetNumber(nConstructingClassXWithAbstractMethodY) //  Constructing an instance of a class with abstract methods.
   //'IMPLICIT_VARIANTS': ; //  Implicit use of the variants unit.
   // useanalyzer: 'NO_RETVAL': ; // Function result is not set.
-  'SYMBOL_DEPRECATED': SetNumber(nSymbolXIsDeprecated); //   Deprecated symbol.
-  'SYMBOL_EXPERIMENTAL': SetNumber(nSymbolXIsExperimental); //   Experimental symbol
-  'SYMBOL_LIBRARY': SetNumber(nSymbolXBelongsToALibrary); //   Not used.
-  'SYMBOL_PLATFORM': SetNumber(nSymbolXIsNotPortable); //   Platform-dependent symbol.
-  'SYMBOL_UNIMPLEMENTED': SetNumber(nSymbolXIsNotImplemented); //   Unimplemented symbol.
+  else if Identifier = 'SYMBOL_DEPRECATED' then SetNumber(nSymbolXIsDeprecated) //   Deprecated symbol.
+  else if Identifier = 'SYMBOL_EXPERIMENTAL' then SetNumber(nSymbolXIsExperimental) //   Experimental symbol
+  else if Identifier = 'SYMBOL_LIBRARY' then SetNumber(nSymbolXBelongsToALibrary) //   Not used.
+  else if Identifier = 'SYMBOL_PLATFORM' then SetNumber(nSymbolXIsNotPortable) //   Platform-dependent symbol.
+  else if Identifier = 'SYMBOL_UNIMPLEMENTED' then SetNumber(nSymbolXIsNotImplemented) //   Unimplemented symbol.
   //'UNIT_DEPRECATED': ; //   Deprecated unit.
   //'UNIT_EXPERIMENTAL': ; //   Experimental unit.
   //'UNIT_LIBRARY': ; //
@@ -23574,16 +23601,15 @@ begin
   //'CVT_NARROWING_STRING_LOST': ; //   Unicode constant cast with potential data loss
 
   // Delphi:
-  'HIDDEN_VIRTUAL': SetNumber(nMethodHidesMethodOfBaseType); // method hides virtual method of ancestor
-  'GARBAGE': SetNumber(nTextAfterFinalIgnored); // text after final end.
-  'BOUNDS_ERROR': SetNumbers([nRangeCheckError,
+  else if Identifier = 'HIDDEN_VIRTUAL' then SetNumber(nMethodHidesMethodOfBaseType) // method hides virtual method of ancestor
+  else if Identifier = 'GARBAGE' then SetNumber(nTextAfterFinalIgnored) // text after final end.
+  else if Identifier = 'BOUNDS_ERROR' then SetNumbers([nRangeCheckError,
       nHighRangeLimitLTLowRangeLimit,
       nRangeCheckEvaluatingConstantsVMinMax,
-      nRangeCheckInSetConstructor]);
-  'MESSAGE_DIRECTIVE': SetNumber(nUserDefined); // $message directive
+      nRangeCheckInSetConstructor])
+  else if Identifier = 'MESSAGE_DIRECTIVE' then SetNumber(nUserDefined) // $message directive
   else
     Result:=false;
-  end;
 end;
 
 procedure TPasResolver.GetIncompatibleTypeDesc(const GotType,
@@ -29091,12 +29117,14 @@ begin
   Prim:=TPrimitiveExpr(El);
   if Prim.Kind<>pekIdent then
     exit(tkEOF);
-  case lowercase(Prim.Value) of
-  'record': Result:=tkrecord;
-  'class': Result:=tkclass;
-  'constructor': Result:=tkconstructor;
+  var Value := lowercase(Prim.Value);
+  if Value = 'record' then
+    Result:=tkrecord
+  else if Value = 'class' then
+    Result:=tkclass
+  else if Value = 'constructor' then
+    Result:=tkconstructor
   else Result:=tkEOF;
-  end;
 end;
 
 function TPasResolver.GetGenericConstraintErrorEl(ConstraintEl,

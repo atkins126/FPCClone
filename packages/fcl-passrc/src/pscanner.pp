@@ -28,7 +28,7 @@ uses
   {$ENDIF}
   Types,
   {$endif}
-  SysUtils, Classes;
+  SysUtils, Classes{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 // message numbers
 const
@@ -754,6 +754,9 @@ type
     FCurToken: TToken;
     FCurTokenString: string;
     FCurLine: string;
+    {$IFNDEF UsePChar}
+    FCurLineLength: Integer;
+    {$ENDIF}
     FMaxIncludeStackDepth: integer;
     FModuleRow: Integer;
     FMacros: TStrings; // Objects are TMacroDef
@@ -1417,25 +1420,27 @@ begin
     case Args[i].VType of
       vtInteger:      MsgArgs[i] := IntToStr(Args[i].VInteger);
       vtBoolean:      MsgArgs[i] := BoolToStr(Args[i].VBoolean);
-      vtChar:         MsgArgs[i] := Args[i].VChar;
+      vtChar:         MsgArgs[i] := String(Args[i].VChar) ;
       {$ifndef FPUNONE}
       vtExtended:     ; //  Args[i].VExtended^;
       {$ENDIF}
-      vtString:       MsgArgs[i] := Args[i].VString^;
+      vtString:       MsgArgs[i] := String(Args[i].VString^);
       vtPointer:      ; //  Args[i].VPointer;
-      vtPChar:        MsgArgs[i] := Args[i].VPChar;
+      vtPChar:        MsgArgs[i] := String(Args[i].VPChar);
       vtObject:       ; //  Args[i].VObject;
       vtClass:        ; //  Args[i].VClass;
-      vtWideChar:     MsgArgs[i] := AnsiString(Args[i].VWideChar);
+      vtWideChar:     MsgArgs[i] := String(Args[i].VWideChar);
       vtPWideChar:    MsgArgs[i] := Args[i].VPWideChar;
-      vtAnsiString:   MsgArgs[i] := AnsiString(Args[i].VAnsiString);
+      vtAnsiString:   MsgArgs[i] := String(Args[i].VAnsiString);
       vtCurrency:     ; //  Args[i].VCurrency^);
       vtVariant:      ; //  Args[i].VVariant^);
       vtInterface:    ; //  Args[i].VInterface^);
-      vtWidestring:   MsgArgs[i] := AnsiString(WideString(Args[i].VWideString));
+      vtWidestring:   MsgArgs[i] := String(WideString(Args[i].VWideString));
       vtInt64:        MsgArgs[i] := IntToStr(Args[i].VInt64^);
+{$IFDEF FPC}
       vtQWord:        MsgArgs[i] := IntToStr(Args[i].VQWord^);
-      vtUnicodeString:MsgArgs[i] := AnsiString(UnicodeString(Args[i].VUnicodeString));
+{$ENDIF}
+      vtUnicodeString:MsgArgs[i] := String(UnicodeString(Args[i].VUnicodeString));
     end;
     {$endif}
 end;
@@ -1747,7 +1752,7 @@ var
 begin
   aName:=UpperCase(aName);
   if aName='' then exit(msNone);
-  for ms in TModeSwitch do
+  for ms := Low(TModeSwitch) to High(TModeSwitch) do
     if SModeSwitchNames[ms]=aName then exit(ms);
   Result:=msNone;
 end;
@@ -1858,6 +1863,11 @@ const
   {$endif}
 
   function ReadIdentifier: TToken;
+  {$IFNDEF UsePChar}
+  var
+    Token: String;
+
+  {$ENDIF}
   begin
     Result:=tkIdentifier;
     {$ifdef UsePChar}
@@ -1882,16 +1892,24 @@ const
         Result:=tkdiv;
     end;
     {$else}
-    case lowercase(copy(Expression,FTokenStart,FTokenEnd-FTokenStart)) of
-    'or': Result:=tkor;
-    'not': Result:=tknot;
-    'and': Result:=tkand;
-    'xor': Result:=tkxor;
-    'shl': Result:=tkshl;
-    'shr': Result:=tkshr;
-    'mod': Result:=tkmod;
-    'div': Result:=tkdiv;
-    end;
+    Token := lowercase(copy(Expression,FTokenStart,FTokenEnd-FTokenStart));
+
+    if Token = 'or' then
+      Result:=tkor
+    else if Token = 'not' then
+      Result:=tknot
+    else if Token = 'and' then
+      Result:=tkand
+    else if Token = 'xor' then
+      Result:=tkxor
+    else if Token = 'shl' then
+      Result:=tkshl
+    else if Token = 'shr' then
+      Result:=tkshr
+    else if Token = 'mod' then
+      Result:=tkmod
+    else if Token = 'div' then
+      Result:=tkdiv;
     {$endif}
   end;
 
@@ -2022,7 +2040,7 @@ begin
   '<':
     begin
     inc(FTokenEnd);
-    case {$ifdef UsePChar}FTokenEnd^{$else}copy(Src,FTokenEnd,1){$endif} of
+    case {$ifdef UsePChar}FTokenEnd^{$else}Src[FTokenEnd]{$endif} of
     '=':
       begin
       FToken:=tkLessEqualThan;
@@ -2045,7 +2063,7 @@ begin
   '>':
     begin
     inc(FTokenEnd);
-    case {$ifdef UsePChar}FTokenEnd^{$else}copy(Src,FTokenEnd,1){$endif} of
+    case {$ifdef UsePChar}FTokenEnd^{$else}Src[FTokenEnd]{$endif} of
     '=':
       begin
       FToken:=tkGreaterEqualThan;
@@ -3093,7 +3111,6 @@ end;
 
 function TFileResolver.FindSourceFile(const AName: string): TLineReader;
 begin
-  Result := nil;
   if not FileExists(AName) then
     Raise EFileNotFoundError.create(AName)
   else
@@ -3264,13 +3281,13 @@ begin
   FCurrentBoolSwitches:=bsFPCMode;
   FAllowedBoolSwitches:=bsAll;
   FAllowedValueSwitches:=vsAllValueSwitches;
-  for vs in TValueSwitch do
+  for vs := Low(TValueSwitch) to High(TValueSwitch) do
     FCurrentValueSwitches[vs]:=DefaultValueSwitches[vs];
 
   FConditionEval:=TCondDirectiveEvaluator.Create;
-  FConditionEval.OnLog:=@OnCondEvalLog;
-  FConditionEval.OnEvalVariable:=@OnCondEvalVar;
-  FConditionEval.OnEvalFunction:=@OnCondEvalFunction;
+  FConditionEval.OnLog:={$IFDEF FPC}@{$ENDIF}OnCondEvalLog;
+  FConditionEval.OnEvalVariable:={$IFDEF FPC}@{$ENDIF}OnCondEvalVar;
+  FConditionEval.OnEvalFunction:={$IFDEF FPC}@{$ENDIF}OnCondEvalFunction;
 end;
 
 destructor TPascalScanner.Destroy;
@@ -3354,10 +3371,10 @@ begin
 end;
 
 procedure TPascalScanner.OpenFile(AFilename: string);
-
+{$IFDEF HASFS}
 Var
   aPath : String;
-
+{$ENDIF}
 begin
   Clearfiles;
   FCurSourceFile := FileResolver.FindSourceFile(AFilename);
@@ -3453,7 +3470,6 @@ begin
       if FIncludeStack.Count > 0 then
         begin
         PopStackItem;
-        Result := FCurToken;
         end
       else
         break;
@@ -3520,7 +3536,7 @@ var
       {$ifdef UsePChar}
       OldLen:=length(FCurTokenString);
       SetLength(FCurTokenString,OldLen+AddLen);
-      Move(StartPos^,PChar(PChar(FCurTokenString)+OldLen)^,AddLen);
+      Move(StartPos^,PChar(PChar(FCurTokenString)+OldLen)^,AddLen*SizeOf(Char));
       {$else}
       FCurTokenString:=FCurTokenString+copy(FCurLine,StartPos,AddLen);
       {$endif}
@@ -3658,7 +3674,7 @@ begin
             and (FTokenPos[2] in ['d','D'])
             and not (FTokenPos[3] in IdentChars)
             {$else}
-            (TJSString(copy(s,FTokenPos,3)).toLowerCase='end')
+            (TJSString(copy(s,FTokenPos,3)).{$IFDEF FPC}toLowerCase{$ELSE}ToLower{$ENDIF}='end')
             and ((FTokenPos+3>l) or not (s[FTokenPos+3] in IdentChars))
             {$endif}
             then
@@ -3690,7 +3706,7 @@ begin
         else
           begin
           // skip identifier
-          if FTokenPos[0]='@' then
+          if {$ifdef UsePChar}FTokenPos[0]{$ELSE}s[FTokenPos]{$ENDIF}='@' then
             inc(FTokenPos);
           while {$ifdef UsePChar}FTokenPos[0] in IdentChars{$else}(FTokenPos<=l) and (s[FTokenPos] in IdentChars){$endif} do
             inc(FTokenPos);
@@ -4168,9 +4184,9 @@ begin
   if Ext<>'' then
     Ext:=Copy(Ext,2,Length(Ext)-1);
   H:=FindResourceHandler(LowerCase(Ext));
-  if (H=Nil) then
+  if not Assigned(H) then
     H:=FindResourceHandler('*');
-  if (H=Nil) then
+  if not Assigned(H) then
     begin
     if not (po_IgnoreUnknownResource in Options) then
       Error(nNoResourceSupport,SNoResourceSupport,[Ext]);
@@ -4334,10 +4350,12 @@ begin
   p:=Pos(' ',s);
   if p>0 then
     s:=LeftStr(s,p-1);
-  case s of
-  'COM','DEFAULT': NewValue:='COM';
-  'CORBA': NewValue:='CORBA';
+  if (s = 'COM') or (s = 'DEFAULT') then
+    NewValue:='COM'
+  else if s = 'CORBA' then
+    NewValue:='CORBA'
   else
+  begin
     Error(nWarnIllegalCompilerDirectiveX,sWarnIllegalCompilerDirectiveX,['interfaces '+s]);
     exit;
   end;
@@ -4374,6 +4392,7 @@ var
   Number: LongInt;
   State: TWarnMsgState;
   Handled: Boolean;
+  s: string;
 begin
   if Identifier='' then
     Error(nIllegalStateForWarnDirective,SIllegalStateForWarnDirective,['']);
@@ -4382,12 +4401,16 @@ begin
     DoLog(mtWarning,nIllegalStateForWarnDirective,SIllegalStateForWarnDirective,['']);
     exit;
     end;
-  case lowercase(Value) of
-  'on': State:=wmsOn;
-  'off': State:=wmsOff;
-  'default': State:=wmsDefault;
-  'error': State:=wmsError;
-  else
+  s := lowercase(Value);
+  if s = 'on' then
+    state:=wmsOn
+  else if s = 'off' then
+    state:=wmsOff
+  else if s = 'default' then
+    state:=wmsDefault
+  else if s = 'error' then
+    state:=wmsError
+  else begin
     DoLog(mtWarning,nIllegalStateForWarnDirective,SIllegalStateForWarnDirective,[Value]);
     exit;
   end;
@@ -4466,22 +4489,27 @@ var
   p: Integer;
   Kind: String;
   MsgType: TMessageType;
+  s: string;
 begin
   if Param='' then exit;
   p:=1;
   while (p<=length(Param)) and (Param[p] in ['a'..'z','A'..'Z']) do inc(p);
   Kind:=LeftStr(Param,p-1);
   MsgType:=mtHint;
-  case UpperCase(Kind) of
-  'HINT': MsgType:=mtHint;
-  'NOTE': MsgType:=mtNote;
-  'WARN': MsgType:=mtWarning;
-  'ERROR': MsgType:=mtError;
-  'FATAL': MsgType:=mtFatal;
+  s := UpperCase(Kind);
+  if s = 'HINT' then
+    MsgType:=mtHint
+  else if s = 'NOTE' then
+    MsgType:=mtNote
+  else if s = 'WARN' then
+    MsgType:=mtWarning
+  else if s = 'ERROR' then
+    MsgType:=mtError
+  else if s = 'FATAL' then
+    MsgType:=mtFatal
   else
     // $Message 'hint text'
     p:=1;
-  end;
   while (p<=length(Param)) and (Param[p] in [' ',#9]) do inc(p);
   Delete(Param,1,p-1);
   if MsgType in [mtFatal,mtError] then
@@ -4554,54 +4582,48 @@ begin
     exit;
     end;
   P:=Trim(UpperCase(Param));
-  Case P of
-  'FPC','DEFAULT':
-    begin
+  if (P = 'FPC') or (p = 'DEFAULT') then
+  begin
     SetMode(msFpc,FPCModeSwitches,false,bsFPCMode);
     SetNonToken(tkobjcclass);
     SetNonToken(tkobjcprotocol);
     SetNonToken(tkobjcCategory);
-    end;
-  'OBJFPC':
-    begin
+  end else if p = 'OBJFPC' then
+  begin
     SetMode(msObjfpc,OBJFPCModeSwitches,true,bsObjFPCMode);
     UnsetNonToken(tkgeneric);
     UnsetNonToken(tkspecialize);
     SetNonToken(tkobjcclass);
     SetNonToken(tkobjcprotocol);
     SetNonToken(tkobjcCategory);
-    end;
-  'DELPHI':
-    begin
+  end else if p = 'DELPHI' then
+  begin
     SetMode(msDelphi,DelphiModeSwitches,true,bsDelphiMode,[bsPointerMath]);
     SetNonToken(tkgeneric);
     SetNonToken(tkspecialize);
     SetNonToken(tkobjcclass);
     SetNonToken(tkobjcprotocol);
     SetNonToken(tkobjcCategory);
-    end;
-  'DELPHIUNICODE':
-    begin
+  end else if p = 'DELPHIUNICODE' then
+  begin
     SetMode(msDelphiUnicode,DelphiUnicodeModeSwitches,true,bsDelphiUnicodeMode,[bsPointerMath]);
     SetNonToken(tkgeneric);
     SetNonToken(tkspecialize);
     SetNonToken(tkobjcclass);
     SetNonToken(tkobjcprotocol);
     SetNonToken(tkobjcCategory);
-    end;
-  'TP':
-    SetMode(msTP7,TPModeSwitches,false);
-  'MACPAS':
-    SetMode(msMac,MacModeSwitches,false,bsMacPasMode);
-  'ISO':
-    SetMode(msIso,ISOModeSwitches,false,[],[],false);
-  'EXTENDEDPASCAL':
-    SetMode(msExtpas,ExtPasModeSwitches,false);
-  'GPC':
-    SetMode(msGPC,GPCModeSwitches,false);
+  end else if p = 'TP' then
+    SetMode(msTP7,TPModeSwitches,false)
+  else if p = 'MACPAS' then
+    SetMode(msMac,MacModeSwitches,false,bsMacPasMode)
+  else if p = 'ISO' then
+    SetMode(msIso,ISOModeSwitches,false,[],[],false)
+  else if p = 'EXTENDEDPASCAL' then
+    SetMode(msExtpas,ExtPasModeSwitches,false)
+  else if p = 'GPC' then
+    SetMode(msGPC,GPCModeSwitches,false)
   else
     Error(nErrInvalidMode,SErrInvalidMode,[Param])
-  end;
 end;
 
 procedure TPascalScanner.HandleModeSwitch(const Param: String);
@@ -4855,6 +4877,8 @@ Var
       Handled:=false;
   end;
 
+var
+  s: string;
 begin
   Result:=tkComment;
   P:=Pos(' ',ADirectiveText);
@@ -4872,28 +4896,24 @@ begin
   {$ENDIF}
   Handled:=true;
   IsFlowControl:=True;
-  Case UpperCase(Directive) of
-  'IFDEF':
-     HandleIFDEF(Param);
-  'IFNDEF':
-     HandleIFNDEF(Param);
-  'IFOPT':
-     HandleIFOPT(Param);
-  'IFC',   
-  'IF':
-     HandleIF(Param,UpperCase(Directive)='IFC');
-  'ELIFC',
-  'ELSEIF':
-     HandleELSEIF(Param,UpperCase(Directive)='ELIFC');
-  'ELSEC',   
-  'ELSE':
-     HandleELSE(Param);
-  'ENDC',
-  'ENDIF':
-    HandleENDIF(Param);
-  'IFEND':
-    HandleENDIF(Param);
-  else
+  s := UpperCase(Directive);
+  if s = 'IFDEF' then
+     HandleIFDEF(Param)
+  else if s = 'IFNDEF' then
+     HandleIFNDEF(Param)
+  else if s = 'IFOPT' then
+     HandleIFOPT(Param)
+  else if (s = 'IFC') or (s = 'IF') then
+     HandleIF(Param,UpperCase(Directive)='IFC')
+  else if (s = 'ELIFC') or (s = 'ELSEIF') then
+     HandleELSEIF(Param,UpperCase(Directive)='ELIFC')
+  else if (s = 'ELSEC') or (s = 'ELSE') then
+     HandleELSE(Param)
+  else if (s = 'ENDC') or (s = 'ENDIF') then
+    HandleENDIF(Param)
+  else if s = 'IFEND' then
+    HandleENDIF(Param)
+  else begin
     if PPIsSkipping then exit;
     IsFlowControl:=False;
     Handled:=false;
@@ -4906,95 +4926,89 @@ begin
       end;
 
     if not Handled then
-      begin
+    begin
       Handled:=true;
       Param:=Trim(Param);
-      Case UpperCase(Directive) of
-      'ASSERTIONS':
-        DoBoolDirective(bsAssertions);
-      'DEFINE',
-      'DEFINEC',
-      'SETC':
-        HandleDefine(Param);
-      'GOTO':
-        DoBoolDirective(bsGoto);
-      'DISPATCHFIELD':
-        HandleDispatchField(Param,vsDispatchField);
-      'DISPATCHSTRFIELD':
-        HandleDispatchField(Param,vsDispatchStrField);
-      'ERROR':
-        HandleError(Param);
-      'HINT':
-        DoLog(mtHint,nUserDefined,SUserDefined,[Param]);
-      'HINTS':
-        DoBoolDirective(bsHints);
-      'I','INCLUDE':
-        Result:=HandleInclude(Param);
-      'INCLUDESTRING','INCLUDESTRINGFILE':
+      s := UpperCase(Directive);
+      if s = 'ASSERTIONS' then
+        DoBoolDirective(bsAssertions)
+      else if (s = 'DEFINE') or (s = 'DEFINEC') or (s = 'SETC') then
+        HandleDefine(Param)
+      else if s = 'GOTO' then
+        DoBoolDirective(bsGoto)
+      else if s = 'DIRECTIVEFIELD' then
+        HandleDispatchField(Param,vsDispatchField)
+      else if s = 'DIRECTIVESTRFIELD' then
+        HandleDispatchField(Param,vsDispatchStrField)
+      else if s = 'ERROR' then
+        HandleError(Param)
+      else if s = 'HINT' then
+        DoLog(mtHint,nUserDefined,SUserDefined,[Param])
+      else if s = 'HINTS' then
+        DoBoolDirective(bsHints)
+      else if (s = 'I') or (s = 'INCLUDE') then
+        Result:=HandleInclude(Param)
+      else if (s = 'INCLUDESTRING') or (s = 'INCLUDESTRINGFILE') then
         begin
         HandleIncludeString(Param);
         Result:=tkString;
-        end;
-      'INTERFACES':
-        HandleInterfaces(Param);
-      'LONGSTRINGS':
-        DoBoolDirective(bsLongStrings);
-      'LINKLIB':
-        HandleLinkLib(Param);
-      'MACRO':
-        DoBoolDirective(bsMacro);
-      'MESSAGE':
-        HandleMessageDirective(Param);
-      'MODE':
-        HandleMode(Param);
-      'MODESWITCH':
-        HandleModeSwitch(Param);
-      'MULTILINESTRINGLINEENDING':
-        HandleMultilineStringLineEnding(Param);
-      'MULTILINESTRINGTRIMLEFT':
-        HandleMultilineStringTrimLeft(Param);
-      'NOTE':
-        DoLog(mtNote,nUserDefined,SUserDefined,[Param]);
-      'NOTES':
-        DoBoolDirective(bsNotes);
-      'OBJECTCHECKS':
-        DoBoolDirective(bsObjectChecks);
-      'OPTIMIZATION':
-        HandleOptimizations(Param);
-      'OVERFLOWCHECKS','OV':
-        DoBoolDirective(bsOverflowChecks);
-      'POINTERMATH':
-        DoBoolDirective(bsPointerMath);
-      'R' :
+        end
+      else if s = 'INTERFACES' then
+        HandleInterfaces(Param)
+      else if s = 'LONGSTRINGS' then
+        DoBoolDirective(bsLongStrings)
+      else if s = 'LINKLIB' then
+        HandleLinkLib(Param)
+      else if s = 'MACRO' then
+        DoBoolDirective(bsMacro)
+      else if s = 'MESSAGE' then
+        HandleMessageDirective(Param)
+      else if s = 'MODE' then
+        HandleMode(Param)
+      else if s = 'MODESWITCH' then
+        HandleModeSwitch(Param)
+      else if s = 'MULTILINESTRINGLINEENDING' then
+        HandleMultilineStringLineEnding(Param)
+      else if s = 'MULTILINESTRINGTRIMLEFT' then
+        HandleMultilineStringTrimLeft(Param)
+      else if s = 'NOTE' then
+        DoLog(mtNote,nUserDefined,SUserDefined,[Param])
+      else if s = 'NOTES' then
+        DoBoolDirective(bsNotes)
+      else if s = 'OBJECTCHECKS' then
+        DoBoolDirective(bsObjectChecks)
+      else if s = 'OPTIMIZATION' then
+        HandleOptimizations(Param)
+      else if (s = 'OVERFLOWCHECKS') or (s = 'OV') then
+        DoBoolDirective(bsOverflowChecks)
+      else if s = 'POINTERMATH' then
+        DoBoolDirective(bsPointerMath)
+      else if s = 'R' then begin
         if not (po_DisableResources in Options) then
           HandleResource(Param);
-      'RANGECHECKS':
-        DoBoolDirective(bsRangeChecks);
-      'SCOPEDENUMS':
-        DoBoolDirective(bsScopedEnums);
-      'TYPEDADDRESS':
-        DoBoolDirective(bsTypedAddress);
-      'TYPEINFO':
-        DoBoolDirective(bsTypeInfo);
-      'UNDEF':
-        HandleUnDefine(Param);
-      'WARN':
-        HandleWarn(Param);
-      'WARNING':
-        DoLog(mtWarning,nUserDefined,SUserDefined,[Param]);
-      'WARNINGS':
-        DoBoolDirective(bsWarnings);
-      'WRITEABLECONST':
-        DoBoolDirective(bsWriteableConst);
-      'ALIGN',
-      'CALLING',
-      'INLINE',
-      'PACKRECORDS',
-      'PACKENUM' : ;
+      end else if s = 'RANGECHECKS' then
+        DoBoolDirective(bsRangeChecks)
+      else if s = 'SCOPEDENUMS' then
+        DoBoolDirective(bsScopedEnums)
+      else if s = 'TYPEDADDRESS' then
+        DoBoolDirective(bsTypedAddress)
+      else if s = 'TYPEINFO' then
+        DoBoolDirective(bsTypeInfo)
+      else if s = 'UNDEF' then
+        HandleUnDefine(Param)
+      else if s = 'WARN' then
+        HandleWarn(Param)
+      else if s = 'WARNING' then
+        DoLog(mtWarning,nUserDefined,SUserDefined,[Param])
+      else if s = 'WARNINGS' then
+        DoBoolDirective(bsWarnings)
+      else if s = 'WRITEABLECONST' then
+        DoBoolDirective(bsWriteableConst)
+      else if (s = 'ALIGN') or (s = 'CALLING') or (s = 'INLINE')
+        or (s = 'PACKRECORDS') or (s = 'PACKENUM') then
       else
         Handled:=false;
-      end;
-      end;
+    end;
   end;
   if (Not IsFlowControl) or OnDirectiveForConditionals then
     DoHandleDirective(Self,Directive,Param,Handled);
@@ -5086,11 +5100,14 @@ Var
 
 begin
   S:=UpperCase(Trim(aParam));
-  Case UpperCase(S) of
-    'ALL'  : I:=-2;
-    'AUTO' : I:=-1;
-    'NONE' : I:=0;
+  if S = 'ALL' then
+    I:=-2
+  else if S = 'AUTO' then
+    I:=-1
+  else if S = 'NONE' then
+    I:=0
   else
+  begin
     If not TryStrToInt(S,I) then
       I:=0;
   end;
@@ -5103,15 +5120,25 @@ Var
   S : TEOLStyle;
 
 begin
-  Case UpperCase(Trim(aParam)) of
-    'CR' : s:=elCR;
-    'LF' : s:=elLF;
-    'CRLF' : s:=elCRLF;
-    'SOURCE' : s:=elSource;
-    'PLATFORM' : s:=elPlatform;
+  var Param := UpperCase(Trim(aParam));
+
+  if Param = 'CR' then
+    s:=elCR
+  else if Param = 'LF' then
+    s:=elLF
+  else if Param = 'CRLF' then
+    s:=elCRLF
+  else if Param = 'SOURCE' then
+    s:=elSource
+  else if Param = 'PLATFORM' then
+    s:=elPlatform
   else
+  begin
+    s:=elPlatform;
+
     Error(nErrInvalidMultiLineLineEnding,sErrInvalidMultiLineLineEnding);
   end;
+
   MultilineStringsEOLStyle:=S;
 end;
 
@@ -5121,24 +5148,12 @@ var
   {$ifdef UsePChar}
   TokenStart: PChar;
   OldLength: integer;
-  Ch: AnsiChar;
-  LE: String[2];
+  Ch: Char;
+  LE: String;
   {$else}
   TokenStart: Integer;
-  s: String;
-  l: integer;
   {$endif}
   SectionLength, NestingLevel: Integer;
-
-  function FetchLocalLine: boolean; inline;
-  begin
-    Result:=FetchLine;
-    {$ifndef UsePChar}
-    if not Result then exit;
-    s:=FCurLine;
-    l:=length(s);
-    {$endif}
-  end;
 
 begin
   {$ifdef UsePChar}
@@ -5153,7 +5168,7 @@ begin
   {$endif}
   NestingLevel:=0;
   repeat
-    if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>l{$endif} then
+    if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>FCurLineLength{$endif} then
       begin
       SectionLength:=FTokenPos - TokenStart;
       {$ifdef UsePChar}
@@ -5169,7 +5184,7 @@ begin
       {$else}
       FCurTokenString:=FCurTokenString+copy(FCurLine,TokenStart,SectionLength)+LineEnding; // Corrected JC
       {$endif}
-      if not FetchLocalLine then
+      if not FetchLine then
         begin
         Result := tkEOF;
         FCurToken := Result;
@@ -5178,7 +5193,7 @@ begin
       TokenStart:=FTokenPos;
       end
     else if {$ifdef UsePChar}(FTokenPos[0] = '*') and (FTokenPos[1] = ')')
-        {$else}(FTokenPos<l) and (s[FTokenPos]='*') and (s[FTokenPos+1]=')'){$endif}
+      {$else}(FTokenPos < FCurLineLength) and (FCurLine[FTokenPos]='*') and (FCurLine[FTokenPos+1]=')'){$endif}
       then begin
       dec(NestingLevel);
       if NestingLevel<0 then
@@ -5187,7 +5202,7 @@ begin
       end
     else if (msNestedComment in CurrentModeSwitches)
         and {$ifdef UsePChar}(FTokenPos[0] = '(') and (FTokenPos[1] = '*')
-        {$else}(FTokenPos<l) and (s[FTokenPos]='(') and (s[FTokenPos+1]='*'){$endif}
+        {$else}(FTokenPos < FCurLineLength) and (FCurLine[FTokenPos]='(') and (FCurLine[FTokenPos+1]='*'){$endif}
       then begin
       inc(FTokenPos,2);
       Inc(NestingLevel);
@@ -5218,24 +5233,12 @@ var
   {$ifdef UsePChar}
   TokenStart: PChar;
   OldLength: integer;
-  Ch: AnsiChar;
-  LE: String[2];
+  Ch: Char;
+  LE: String;
   {$else}
   TokenStart: Integer;
-  s: String;
-  l: integer;
   {$endif}
   SectionLength, NestingLevel: Integer;
-
-  function FetchLocalLine: boolean; inline;
-  begin
-    Result:=FetchLine;
-    {$ifndef UsePChar}
-    if not Result then exit;
-    s:=FCurLine;
-    l:=length(s);
-    {$endif}
-  end;
 
 begin
   Inc(FTokenPos);
@@ -5247,7 +5250,7 @@ begin
   {$endif}
   NestingLevel := 0;
   repeat
-    if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>l{$endif} then
+    if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>FCurLineLength{$endif} then
       begin
       SectionLength := FTokenPos - TokenStart;
       {$ifdef UsePChar}
@@ -5265,7 +5268,7 @@ begin
       {$else}
       FCurTokenString:=FCurTokenString+copy(FCurLine,TokenStart,SectionLength)+LineEnding; // Corrected JC
       {$endif}
-      if not FetchLocalLine then
+      if not FetchLine then
       begin
         Result := tkEOF;
         FCurToken := Result;
@@ -5273,14 +5276,14 @@ begin
       end;
       TokenStart := FTokenPos;
       end
-    else if {$ifdef UsePChar}(FTokenPos[0] = '}'){$else}(s[FTokenPos]='}'){$endif} then
+    else if {$ifdef UsePChar}(FTokenPos[0] = '}'){$else}(FCurLine[FTokenPos]='}'){$endif} then
       begin
       Dec(NestingLevel);
       if NestingLevel<0 then
         break;
       Inc(FTokenPos);
       end
-    else if {$ifdef UsePChar}(FTokenPos[0] = '{'){$else}(s[FTokenPos]='{'){$endif}
+    else if {$ifdef UsePChar}(FTokenPos[0] = '{'){$else}(FCurLine[FTokenPos]='{'){$endif}
         and (msNestedComment in CurrentModeSwitches) then
       begin
       inc(FTokenPos);
@@ -5295,7 +5298,7 @@ begin
   if SectionLength > 0 then
     Move(TokenStart^, FCurTokenString[OldLength + 1], SectionLength);
   {$else}
-  FCurTokenString:=FCurTokenString+copy(s,TokenStart,SectionLength);
+  FCurTokenString:=FCurTokenString+copy(FCurLine,TokenStart,SectionLength);
   {$endif}
   Inc(FTokenPos);
   Result := tkComment;
@@ -5311,14 +5314,8 @@ var
   TokenStart: {$ifdef UsePChar}PChar{$else}integer{$endif};
   i: TToken;
   SectionLength,  Index: Integer;
-  {$ifdef UsePChar}
-  //
-  {$else}
-  s: string;
-  l: integer;
-  {$endif}
 
-  procedure FetchCurTokenString; inline;
+  procedure FetchCurTokenString;
   begin
     {$ifdef UsePChar}
     SetLength(FCurTokenString, SectionLength);
@@ -5326,16 +5323,6 @@ var
       Move(TokenStart^, FCurTokenString[1], SectionLength);
     {$else}
     FCurTokenString:=copy(FCurLine,TokenStart,SectionLength);
-    {$endif}
-  end;
-
-  function FetchLocalLine: boolean; inline;
-  begin
-    Result:=FetchLine;
-    {$ifndef UsePChar}
-    if not Result then exit;
-    s:=FCurLine;
-    l:=length(s);
     {$endif}
   end;
 
@@ -5355,9 +5342,7 @@ begin
   FCurTokenPos.Row:=CurRow;
   FCurTokenPos.Column:=CurColumn;
   {$ifndef UsePChar}
-  s:=FCurLine;
-  l:=length(s);
-  if FTokenPos>l then
+  if FTokenPos>FCurLineLength then
     begin
     FetchLine;
     Result := tkLineEnding;
@@ -5365,7 +5350,7 @@ begin
     exit;
     end;
   {$endif}
-  case {$ifdef UsePChar}FTokenPos[0]{$else}s[FTokenPos]{$endif} of
+  case {$ifdef UsePChar}FTokenPos[0]{$else}FCurLine[FTokenPos]{$endif} of
     {$ifdef UsePChar}
     #0:         // Empty line
       begin
@@ -5378,26 +5363,26 @@ begin
       Result := tkWhitespace;
       repeat
         Inc(FTokenPos);
-        if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>l{$endif} then
-          if not FetchLocalLine then
+        if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>FCurLineLength{$endif} then
+          if not FetchLine then
             begin
             FCurToken := Result;
             exit;
             end;
-      until not ({$ifdef UsePChar}FTokenPos[0]{$else}s[FTokenPos]{$endif}=' ');
+      until not ({$ifdef UsePChar}FTokenPos[0]{$else}FCurLine[FTokenPos]{$endif}=' ');
       end;
     #9:
       begin
       Result := tkTab;
       repeat
         Inc(FTokenPos);
-        if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>l{$endif} then
-          if not FetchLocalLine then
+        if {$ifdef UsePChar}FTokenPos[0] = #0{$else}FTokenPos>FCurLineLength{$endif} then
+          if not FetchLine then
             begin
             FCurToken := Result;
             exit;
             end;
-      until not ({$ifdef UsePChar}FTokenPos[0]{$else}s[FTokenPos]{$endif}=#9);
+      until not ({$ifdef UsePChar}FTokenPos[0]{$else}FCurLine[FTokenPos]{$endif}=#9);
       end;
     '#', '''':
       Result:=DoFetchTextToken;
@@ -5405,7 +5390,7 @@ begin
       begin
       If not (msMultiLineStrings in CurrentModeSwitches) then
          Error(nErrInvalidCharacter, SErrInvalidCharacter,
-        [{$ifdef UsePChar}FTokenPos[0]{$else}s[FTokenPos]{$endif}]);
+        [{$ifdef UsePChar}FTokenPos[0]{$else}FCurLine[FTokenPos]{$endif}]);
       Result:=DoFetchMultilineTextToken;
       end;
     '&':
@@ -5413,10 +5398,10 @@ begin
       TokenStart := FTokenPos;
       repeat
         Inc(FTokenPos);
-      until {$ifdef UsePChar}not (FTokenPos[0] in ['0'..'7']){$else}(FTokenPos>l) or not (s[FTokenPos] in ['0'..'7']){$endif};
+      until {$ifdef UsePChar}not (FTokenPos[0] in ['0'..'7']){$else}(FTokenPos>FCurLineLength) or not (FCurLine[FTokenPos] in ['0'..'7']){$endif};
       SectionLength := FTokenPos - TokenStart;
       if (SectionLength=1)
-          and ({$ifdef UsePChar}FTokenPos^{$else}s[FTokenPos]{$endif} in IdentChars) then
+          and ({$ifdef UsePChar}FTokenPos^{$else}FCurLine[FTokenPos]{$endif} in IdentChars) then
         begin
         // &Keyword
         DoFetchToken();
@@ -5434,7 +5419,7 @@ begin
       TokenStart := FTokenPos;
       repeat
         Inc(FTokenPos);
-      until {$ifdef UsePChar}not (FTokenPos[0] in HexDigits){$else}(FTokenPos>l) or not (s[FTokenPos] in HexDigits){$endif};
+      until {$ifdef UsePChar}not (FTokenPos[0] in HexDigits){$else}(FTokenPos>FCurLineLength) or not (FCurLine[FTokenPos] in HexDigits){$endif};
       SectionLength := FTokenPos - TokenStart;
       FetchCurTokenString;
       Result := tkNumber;
@@ -5444,7 +5429,7 @@ begin
       TokenStart := FTokenPos;
       repeat
         Inc(FTokenPos);
-      until {$ifdef UsePChar}not (FTokenPos[0] in ['0','1']){$else}(FTokenPos>l) or not (s[FTokenPos] in ['0','1']){$endif};
+      until {$ifdef UsePChar}not (FTokenPos[0] in ['0','1']){$else}(FTokenPos>FCurLineLength) or not (FCurLine[FTokenPos] in ['0','1']){$endif};
       SectionLength := FTokenPos - TokenStart;
       FetchCurTokenString;
       Result := tkNumber;
@@ -5452,12 +5437,12 @@ begin
     '(':
       begin
       Inc(FTokenPos);
-      if {$ifdef UsePChar}FTokenPos[0] = '.'{$else}(FTokenPos<=l) and (s[FTokenPos]='.'){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0] = '.'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='.'){$endif} then
         begin
         Inc(FTokenPos);
         Result := tkSquaredBraceOpen;
         end
-      else if {$ifdef UsePChar}FTokenPos[0] <> '*'{$else}(FTokenPos>l) or (s[FTokenPos]<>'*'){$endif} then
+      else if {$ifdef UsePChar}FTokenPos[0] <> '*'{$else}(FTokenPos>FCurLineLength) or (FCurLine[FTokenPos]<>'*'){$endif} then
         Result := tkBraceOpen
       else
         Result:=HandleMultilineCommentOldStyle;
@@ -5471,14 +5456,14 @@ begin
       begin
       Result:=tkMul;
       Inc(FTokenPos);
-      if {$ifdef UsePChar}FTokenPos[0]='*'{$else}(FTokenPos<=l) and (s[FTokenPos]='*'){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0]='*'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='*'){$endif} then
         begin
         Inc(FTokenPos);
         Result := tkPower;
         end
       else if (po_CAssignments in options) then
         begin
-        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=l) and (s[FTokenPos]='='){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='='){$endif} then
           begin
           Inc(FTokenPos);
           Result:=tkAssignMul;
@@ -5491,7 +5476,7 @@ begin
       Inc(FTokenPos);
       if (po_CAssignments in options) then
         begin
-        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=l) and (s[FTokenPos]='='){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='='){$endif} then
           begin
           Inc(FTokenPos);
           Result:=tkAssignPlus;
@@ -5509,7 +5494,7 @@ begin
       Inc(FTokenPos);
       if (po_CAssignments in options) then
         begin
-        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=l) and (s[FTokenPos]='='){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='='){$endif} then
           begin
           Inc(FTokenPos);
           Result:=tkAssignMinus;
@@ -5519,15 +5504,15 @@ begin
     '.':
       begin
       Inc(FTokenPos);
-      if {$ifdef UsePChar}FTokenPos[0]=')'{$else}(FTokenPos<=l) and (s[FTokenPos]=')'){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0]=')'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]=')'){$endif} then
         begin
         Inc(FTokenPos);
         Result := tkSquaredBraceClose;
         end
-      else if {$ifdef UsePChar}FTokenPos[0]='.'{$else}(FTokenPos<=l) and (s[FTokenPos]='.'){$endif} then
+      else if {$ifdef UsePChar}FTokenPos[0]='.'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='.'){$endif} then
         begin
         Inc(FTokenPos);
-        if {$ifdef UsePChar}FTokenPos[0]='.'{$else}(FTokenPos<=l) and (s[FTokenPos]='.'){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0]='.'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='.'){$endif} then
           begin
           Inc(FTokenPos);
           Result:=tkDotDotDot;
@@ -5542,13 +5527,13 @@ begin
       begin
       Result := tkDivision;
       Inc(FTokenPos);
-      if {$ifdef UsePChar}FTokenPos[0]='/'{$else}(FTokenPos<=l) and (s[FTokenPos]='/'){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0]='/'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='/'){$endif} then
         begin
         // Single-line comment
         Inc(FTokenPos);
         TokenStart := FTokenPos;
         FCurTokenString := '';
-        while {$ifdef UsePChar}FTokenPos[0] <> #0{$else}(FTokenPos<=l) and (s[FTokenPos]<>#0){$endif} do
+        while {$ifdef UsePChar}FTokenPos[0] <> #0{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]<>#0){$endif} do
           Inc(FTokenPos);
         SectionLength := FTokenPos - TokenStart;
         FetchCurTokenString;
@@ -5559,13 +5544,13 @@ begin
           Repeat
             I:=Fetchtoken;
           until (i<>tkLineEnding);
-          FetchLocalLine;
+          FetchLine;
           end;
         Result := tkComment;
         end
       else if (po_CAssignments in options) then
         begin
-        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=l) and (s[FTokenPos]='='){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='='){$endif} then
           begin
           Inc(FTokenPos);
           Result:=tkAssignDivision;
@@ -5579,20 +5564,20 @@ begin
       TokenStart := FTokenPos;
       repeat
         Inc(FTokenPos);
-      until {$ifdef UsePChar}not (FTokenPos[0] in Digits){$else}(FTokenPos>l) or not (s[FTokenPos] in Digits){$endif};
+      until {$ifdef UsePChar}not (FTokenPos[0] in Digits){$else}(FTokenPos>FCurLineLength) or not (FCurLine[FTokenPos] in Digits){$endif};
       if {$ifdef UsePChar}(FTokenPos[0]='.') and (FTokenPos[1]<>'.') and (FTokenPos[1]<>')'){$else}
-          (FTokenPos<=l) and (s[FTokenPos]='.') and ((FTokenPos=l) or ((s[FTokenPos+1]<>'.') and (s[FTokenPos+1]<>')'))){$endif}then
+          (FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='.') and ((FTokenPos=FCurLineLength) or ((FCurLine[FTokenPos+1]<>'.') and (FCurLine[FTokenPos+1]<>')'))){$endif}then
         begin
         inc(FTokenPos);
-        while {$ifdef UsePChar}FTokenPos[0] in Digits{$else}(FTokenPos<=l) and (s[FTokenPos] in Digits){$endif} do
+        while {$ifdef UsePChar}FTokenPos[0] in Digits{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos] in Digits){$endif} do
           Inc(FTokenPos);
         end;
-      if {$ifdef UsePChar}FTokenPos[0] in ['e', 'E']{$else}(FTokenPos<=l) and (s[FTokenPos] in ['e', 'E']){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0] in ['e', 'E']{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos] in ['e', 'E']){$endif} then
       begin
         Inc(FTokenPos);
-        if {$ifdef UsePChar}FTokenPos[0] in ['-','+']{$else}(FTokenPos<=l) and (s[FTokenPos] in ['-','+']){$endif} then
+        if {$ifdef UsePChar}FTokenPos[0] in ['-','+']{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos] in ['-','+']){$endif} then
           inc(FTokenPos);
-        while {$ifdef UsePChar}FTokenPos[0] in Digits{$else}(FTokenPos<=l) and (s[FTokenPos] in Digits){$endif} do
+        while {$ifdef UsePChar}FTokenPos[0] in Digits{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos] in Digits){$endif} do
           Inc(FTokenPos);
       end;
       SectionLength := FTokenPos - TokenStart;
@@ -5602,7 +5587,7 @@ begin
     ':':
       begin
       Inc(FTokenPos);
-      if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=l) and (s[FTokenPos]='='){$endif} then
+      if {$ifdef UsePChar}FTokenPos[0]='='{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='='){$endif} then
         begin
         Inc(FTokenPos);
         Result := tkAssign;
@@ -5619,11 +5604,11 @@ begin
       begin
       Inc(FTokenPos);
       {$ifndef UsePChar}
-      if FTokenPos>l then
+      if FTokenPos>FCurLineLength then
         Result := tkLessThan
       else
       {$endif}
-      case {$ifdef UsePChar}FTokenPos^{$else}s[FTokenPos]{$endif} of
+      case {$ifdef UsePChar}FTokenPos^{$else}FCurLine[FTokenPos]{$endif} of
       '>':
         begin
         Inc(FTokenPos);
@@ -5652,11 +5637,11 @@ begin
       begin
       Inc(FTokenPos);
       {$ifndef UsePChar}
-      if FTokenPos>l then
+      if FTokenPos>FCurLineLength then
         Result := tkGreaterThan
       else
       {$endif}
-      case {$ifdef UsePChar}FTokenPos^{$else}s[FTokenPos]{$endif} of
+      case {$ifdef UsePChar}FTokenPos^{$else}FCurLine[FTokenPos]{$endif} of
       '=':
         begin
         Inc(FTokenPos);
@@ -5680,7 +5665,7 @@ begin
       begin
       Inc(FTokenPos);
       Result := tkAt;
-      if {$ifdef UsePChar}FTokenPos^='@'{$else}(FTokenPos<=l) and (s[FTokenPos]='@'){$endif} then
+      if {$ifdef UsePChar}FTokenPos^='@'{$else}(FTokenPos<=FCurLineLength) and (FCurLine[FTokenPos]='@'){$endif} then
         begin
         Inc(FTokenPos);
         Result:=tkAtAt;
@@ -5723,7 +5708,7 @@ begin
       TokenStart := FTokenPos;
       repeat
         Inc(FTokenPos);
-      until {$ifdef UsePChar}not (FTokenPos[0] in IdentChars){$else}(FTokenPos>l) or not (s[FTokenPos] in IdentChars){$endif};
+      until {$ifdef UsePChar}not (FTokenPos[0] in IdentChars){$else}(FTokenPos>FCurLineLength) or not (FCurLine[FTokenPos] in IdentChars){$endif};
       SectionLength := FTokenPos - TokenStart;
       FetchCurTokenString;
       Result:=tkIdentifier;
@@ -5750,7 +5735,7 @@ begin
       Inc(FTokenPos)
     else
       Error(nErrInvalidCharacter, SErrInvalidCharacter,
-        [{$ifdef UsePChar}FTokenPos[0]{$else}s[FTokenPos]{$endif}]);
+        [{$ifdef UsePChar}FTokenPos[0]{$else}FCurLine[FTokenPos]{$endif}]);
   end;
 
   FCurToken := Result;
@@ -6182,7 +6167,7 @@ function TPascalScanner.FetchLine: boolean;
 begin
   if CurSourceFile.IsEOF then
   begin
-    if {$ifdef UsePChar}FTokenPos<>nil{$else}FTokenPos>0{$endif} then
+    if FTokenPos{$ifdef UsePChar}<>nil{$else}>0{$endif} then
       begin
       FCurLine := '';
       FTokenPos := {$ifdef UsePChar}nil{$else}-1{$endif};
@@ -6194,8 +6179,11 @@ begin
   end else
   begin
     FCurLine := CurSourceFile.ReadLine;
+    {$IFNDEF UsePChar}
+    FCurLineLength := FCurLine.Length;
+    {$ENDIF}
     FTokenPos := {$ifdef UsePChar}PChar(CurLine){$else}1{$endif};
-    Result := true;
+    Result := not FCurLine.IsEmpty or FetchLine;
     {$ifdef UseAnsiStrings}
     if (FCurRow = 0)
     and (Length(CurLine) >= 3)
@@ -6213,9 +6201,8 @@ begin
       FCurRow:=TMacroReader(FCurSourceFile).CurRow;
       FCurColumnOffset:=TMacroReader(FCurSourceFile).CurCol;
     end;
-    if LogEvent(sleLineNumber)
-        and (((FCurRow Mod 100) = 0)
-          or CurSourceFile.IsEOF) then
+
+    if LogEvent(sleLineNumber) and (((FCurRow Mod 100) = 0) or CurSourceFile.IsEOF) then
       DoLog(mtInfo,nLogLineNumber,SLogLineNumber,[FCurRow],True); // log last line
   end;
 end;

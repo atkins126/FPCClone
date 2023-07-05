@@ -12,9 +12,11 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
  **********************************************************************}
+{$IFDEF FPC}
 {$mode objfpc}
 {$h+}
 { $INLINE ON}
+{$ENDIF}
 
 unit jsonscanner;
 
@@ -68,8 +70,8 @@ Type
     FCurRow: Integer;
     FCurToken: TJSONToken;
     FCurTokenString: string;
-    FCurLine: PChar;
-    FTokenStr:  PAnsiChar; // position inside FCurLine
+    FCurLine: PAnsiChar;
+    FTokenStr: PAnsiChar; // position inside FCurLine
     FEOL : PAnsiChar; // EOL
     FOptions : TJSONOptions;
     function GetCurColumn: Integer; inline;
@@ -95,9 +97,9 @@ Type
     property CurToken: TJSONToken read FCurToken;
     property CurTokenString: string read FCurTokenString;
     // Use strict JSON: " for strings, object members are strings, not identifiers
-    Property Strict : Boolean Index joStrict Read GetO Write SetO ; deprecated 'use options instead';
+    Property Strict : Boolean Index joStrict Read GetO Write SetO; {$IFDEF FPC}deprecated 'use options instead';{$ENDIF}
     // if set to TRUE, then strings will be converted to UTF8 ansistrings, not system codepage ansistrings.
-    Property UseUTF8 : Boolean index joUTF8 Read GetO Write SetO; deprecated 'Use options instead';
+    Property UseUTF8 : Boolean index joUTF8 Read GetO Write SetO; {$IFDEF FPC}deprecated 'Use options instead';{$ENDIF}
     // Parsing options
     Property Options : TJSONOptions Read FOptions Write FOptions;
   end;
@@ -249,11 +251,11 @@ function TJSONScanner.FetchToken: TJSONToken;
   end;
 
 var
-  TokenStart: PChar;
+  TokenStart: PAnsiChar;
   it : TJSONToken;
   I : Integer;
   OldLength, SectionLength,  tstart,tcol, u1,u2: Integer;
-  C , c2: char;
+  C , c2: AnsiChar;
   S : String[8];
   Line : String;
   IsStar,EOC: Boolean;
@@ -522,7 +524,7 @@ begin
               FCurTokenString:='';
               Inc(FTokenStr);
               TokenStart:=FTokenStr;
-              SectionLength := PChar(FEOL)-TokenStart;
+              SectionLength := FEOL-TokenStart;
               SetString(FCurTokenString, TokenStart, SectionLength);
               FetchLine;
               end;

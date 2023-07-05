@@ -24,7 +24,7 @@ uses
   {$ifdef pas2js}
   JS,
   {$endif}
-  SysUtils, Classes, jsbase, jstree;
+  SysUtils, Classes, jsbase, jstree{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 Type
   {$ifdef pas2js}
@@ -59,12 +59,12 @@ Type
     {$ifdef FPC_HAS_CPSTRING}
     Function Write(Const S : UnicodeString) : Integer;
     {$endif}
-    Function Write(Const S : TJSWriterString) : Integer;
-    Function WriteLn(Const S : TJSWriterString) : Integer;
-    Function Write(Const Fmt : TJSWriterString; Args : Array of const) : Integer;
-    Function WriteLn(Const Fmt : TJSWriterString; Args : Array of const) : Integer;
-    Function Write(Const Args : Array of const) : Integer;
-    Function WriteLn(Const Args : Array of const) : Integer;
+    Function Write(Const S : TJSWriterString) : Integer; overload;
+    Function WriteLn(Const S : TJSWriterString) : Integer; overload;
+    Function Write(Const Fmt : TJSWriterString; Args : Array of const) : Integer; overload;
+    Function WriteLn(Const Fmt : TJSWriterString; Args : Array of const) : Integer; overload;
+    Function Write(Const Args : Array of const) : Integer; overload;
+    Function WriteLn(Const Args : Array of const) : Integer; overload;
     Property CurLine: integer read FCurLine write FCurLine;
     Property CurColumn: integer read FCurColumn write FCurColumn;// char index, not codepoint
     Property CurElement: TJSElement read FCurElement write SetCurElement;
@@ -107,9 +107,9 @@ Type
     FCapacity: Cardinal;
     FBuffer: TBuffer;
     function GetAsString: TJSWriterString;
-    {$ifdef fpc}
+    {$IF DEFINED(FPC) or DEFINED(DCC)}
     function GetBuffer: Pointer;
-    {$endif}
+    {$ENDIF}
     function GetBufferLength: Integer;
     function GetCapacity: Cardinal;
     {$ifdef FPC_HAS_CPSTRING}
@@ -124,10 +124,10 @@ Type
     {$endif}
   Public
     Constructor Create(Const ACapacity : Cardinal); reintroduce;
-    {$ifdef fpc}
+    {$IF DEFINED(FPC) or DEFINED(DCC)}
     Procedure SaveToFile(Const AFileName : String);
     Property Buffer : Pointer Read GetBuffer;
-    {$endif}
+    {$ENDIF}
     {$ifdef pas2js}
     Property Buffer: TBufferWriter_Buffer read FBuffer;
     {$endif}
@@ -176,8 +176,8 @@ Type
     procedure SetOptions(AValue: TWriteOptions);
   Protected
     // Helper routines
-    Procedure Error(Const Msg : TJSWriterString);
-    Procedure Error(Const Fmt : TJSWriterString; Args : Array of const);
+    Procedure Error(Const Msg : TJSWriterString); overload;
+    Procedure Error(Const Fmt : TJSWriterString; Args : Array of const); overload;
     Procedure WriteIndent; // inline;
     {$ifdef FPC_HAS_CPSTRING}
     Procedure Write(Const U : UnicodeString);
@@ -227,9 +227,9 @@ Type
     Function HasLineEnding(El: TJSElement): boolean;
   Public
     Function EscapeString(const S: TJSString; Quote: TJSEscapeQuote = jseqDouble): TJSString;
-    Constructor Create(AWriter : TTextWriter);
+    Constructor Create(AWriter : TTextWriter); overload;
     {$ifdef HasFileWriter}
-    Constructor Create(Const AFileName : String);
+    Constructor Create(Const AFileName : String); overload;
     {$endif}
     Destructor Destroy; override;
     Procedure WriteJS(El : TJSElement);
@@ -325,12 +325,12 @@ begin
   {$endif}
 end;
 
-{$ifdef fpc}
+{$IF DEFINED(FPC) or DEFINED(DCC)}
 function TBufferWriter.GetBuffer: Pointer;
 begin
   Result:=Pointer(FBuffer);
 end;
-{$endif}
+{$ENDIF}
 
 function TBufferWriter.GetCapacity: Cardinal;
 begin
@@ -429,7 +429,7 @@ begin
   Capacity:=ACapacity;
 end;
 
-{$ifdef fpc}
+{$IF DEFINED(FPC) or DEFINED(DCC)}
 procedure TBufferWriter.SaveToFile(const AFileName: String);
 Var
   F : File;
@@ -443,7 +443,7 @@ begin
     Close(F);
   end;
 end;
-{$endif}
+{$ENDIF}
 
 { TJSWriter }
 {AllowWriteln}
@@ -598,7 +598,7 @@ begin
         '\' : R:=R+'\\';
         '"' : if Quote=jseqSingle then R:=R+'"' else R:=R+'\"';
         '''': if Quote=jseqDouble then R:=R+'''' else R:=R+'\''';
-        #0..#7,#11,#14..#31: R:=R+'\x'+TJSString(hexStr(ord(c),2));
+        #0..#7,#11,#14..#31: R:=R+'\x'+TJSString(IntToHex(ord(c),2));
         #8  : R:=R+'\b';
         #9  : R:=R+'\t';
         #10 : R:=R+'\n';
@@ -615,13 +615,13 @@ begin
               continue;
               end;
             // invalid UTF-16, cannot be encoded as UTF-8 -> encode as hex
-            R:=R+'\u'+TJSString(HexStr(ord(S[i]),4));
+            R:=R+'\u'+TJSString(IntToHex(ord(S[i]),4));
             end
           else
             // invalid UTF-16 at end of string, cannot be encoded as UTF-8 -> encode as hex
-            R:=R+'\u'+TJSString(HexStr(ord(c),4));
+            R:=R+'\u'+TJSString(IntToHex(ord(c),4));
           end;
-        #$FF00..#$FFFF: R:=R+'\u'+TJSString(HexStr(ord(c),4));
+        #$FF00..#$FFFF: R:=R+'\u'+TJSString(IntToHex(ord(c),4));
       end;
       J:=I+1;
       end;
@@ -1066,7 +1066,7 @@ procedure TJSWriter.WriteArrayLiteral(El: TJSArrayLiteral);
 
 type
   BracketString = string{$ifdef fpc}[2]{$endif};
-Var
+const
   Chars : Array[Boolean] of BracketString = ('[]','()');
 
 Var
@@ -2224,7 +2224,7 @@ end;
 
 function TTextWriter.Write(const S: TJSWriterString): Integer;
 var
-  c: Char;
+  c: AnsiChar;
   l, p: Integer;
 begin
   if S='' then exit;
@@ -2319,7 +2319,9 @@ begin
        vtWideString    : U:=PWideChar(V.VWideString);
        vtInt64         : Str(V.VInt64^,S);
        vtUnicodeString : U:=PWideChar(V.VUnicodeString);
+       {$IFDEF FPC}
        vtQWord         : Str(V.VQWord^,S);
+       {$ENDIF}
     end;
     if (U<>'') then
       Result:=Result+Write(u)

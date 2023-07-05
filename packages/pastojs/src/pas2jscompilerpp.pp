@@ -18,12 +18,14 @@
 }
 unit Pas2JSCompilerPP;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, pas2jscompiler, jswriter, FPPJSSrcMap, contnrs;
+  Classes, SysUtils, pas2jscompiler, jswriter, FPPJSSrcMap, contnrs{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 Type
 
@@ -54,8 +56,8 @@ begin
   Result:='';
   for i:=0 to CmdList.Count-1 do
   begin
-    if Result<>'' then Result+=' ';
-    Result+=QuoteStr(CmdList[i]);
+    if Result<>'' then Result := Result + ' ';
+    Result := Result + QuoteStr(CmdList[i]);
   end;
 end;
 
@@ -149,9 +151,9 @@ begin
   if Compiler.ShowDebug or Compiler.ShowUsedTools then
     Compiler.Log.LogMsgIgnoreFilter(nPostProcessorRunX,[QuoteStr(JSFilename)+' | '+CmdListAsStr(Cmd)]);
   if Compiler.FS.DirectoryExists(Exe) then
-    raise EFOpenError.Create('post processor "'+Exe+'" is a directory');
+    raise EFOpenError.CreateFmt('post processor "%s" is a directory', [Exe]);
   if not FileIsExecutable(Exe) then
-    raise EFOpenError.Create('post processor "'+Exe+'" is a not executable');
+    raise EFOpenError.CreateFmt('post processor "%s" is a not executable', [Exe]);
   try
     TheProcess := TProcess.Create(nil);
     OutputChunks:=TStringList.Create;
@@ -172,7 +174,7 @@ begin
           if TheProcess.Stderr.NumBytesAvailable=0 then break;
           ReadBytes:=TheProcess.Stderr.Read(Buf[1],BufSize);
           if ReadBytes=0 then break;
-          ErrBuf+=LeftStr(Buf,ReadBytes);
+          ErrBuf := ErrBuf + LeftStr(Buf,ReadBytes);
           repeat
             i:=1;
             while (i<=length(ErrBuf)) and (i<128) and not (ErrBuf[i] in [#10,#13]) do

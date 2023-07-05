@@ -17,7 +17,10 @@
 unit PParser;
 
 {$i fcl-passrc.inc}
+
+{$IFDEF FPC}
 {$modeswitch advancedrecords}
+{$ENDIF}
 {
   define this for additional debug messages on stdout.
   the define name contains Writeln so when you do a grep, you can nicely spot the locations where it is OK to write.
@@ -37,7 +40,7 @@ uses
   {$ifdef NODEJS}
   Node.FS,
   {$endif}
-  SysUtils, Classes, Types, PasTree, PScanner;
+  SysUtils, Classes, Types, PasTree, PScanner{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 // message numbers
 const
@@ -227,8 +230,8 @@ type
     procedure BeginScope(ScopeType: TPasScopeType; El: TPasElement); virtual;
     procedure FinishScope(ScopeType: TPasScopeType; El: TPasElement); virtual;
     procedure FinishTypeAlias(var aType: TPasType); virtual;
-    function FindModule(const AName: String): TPasModule; virtual;
-    function FindModule(const AName: String; NameExpr, InFileExpr: TPasExpr): TPasModule; virtual;
+    function FindModule(const AName: String): TPasModule; overload; virtual;
+    function FindModule(const AName: String; NameExpr, InFileExpr: TPasExpr): TPasModule; overload; virtual;
     function CheckPendingUsedInterface(Section: TPasSection): boolean; virtual; // true if changed
     function NeedArrayValues(El: TPasElement): boolean; virtual;
     function GetDefaultClassVisibility(AClass: TPasClassType): TPasMemberVisibility; virtual;
@@ -269,8 +272,8 @@ type
     UngetRestartToken : Boolean;
     HaveScope : Boolean;
     Scope : TPasScopeType;
-    class Function Create(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext; static;
-    class Function Create(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean; aScope : TPasScopeType ) : TRecoveryContext; static;
+    class Function Create(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext; overload; static;
+    class Function Create(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean; aScope : TPasScopeType ) : TRecoveryContext; overload; static;
   end;
 
   TPasParserErrorHandler = Procedure (Sender : TObject; const aContext : TRecoveryContext; var aAllowRecovery : Boolean) of object;
@@ -379,11 +382,11 @@ type
   protected
     function AllowFinal(aType: TPasType): Boolean;
     function CheckCurtokenIsFinal(aType: TPasType): boolean;
-    Function SaveComments : String;
-    Function SaveComments(Const AValue : String) : String;
+    Function SaveComments : String; overload;
+    Function SaveComments(Const AValue : String) : String; overload;
     function LogEvent(E : TPParserLogEvent) : Boolean; inline;
-    Procedure DoLog(MsgType: TMessageType; MsgNumber: integer; Const Msg : String; SkipSourceInfo : Boolean = False);overload;
-    Procedure DoLog(MsgType: TMessageType; MsgNumber: integer; Const Fmt : String; Args : Array of const;SkipSourceInfo : Boolean = False);overload;
+    Procedure DoLog(MsgType: TMessageType; MsgNumber: integer; Const Msg : String; SkipSourceInfo : Boolean = False); overload;
+    Procedure DoLog(MsgType: TMessageType; MsgNumber: integer; Const Fmt : String; Args : Array of const;SkipSourceInfo : Boolean = False); overload;
     function GetProcTypeFromToken(tk: TToken; IsClass: Boolean=False ): TProcType;
     procedure ParseAsmBlock(AsmBlock: TPasImplAsmStatement); virtual;
     procedure ParseRecordMembers(ARec: TPasRecordType; AEndToken: TToken; AllowMethods : Boolean);
@@ -451,14 +454,14 @@ type
     procedure ParseExcExpectedIdentifier; inline;
     procedure ParseExcSyntaxError; inline;
     procedure ParseExcTypeParamsNotAllowed; inline;
-    procedure ParseExc(MsgNumber: integer; const Msg: String);
-    procedure ParseExc(MsgNumber: integer; const Fmt: String; Args : Array of const);
+    procedure ParseExc(MsgNumber: integer; const Msg: String); overload;
+    procedure ParseExc(MsgNumber: integer; const Fmt: String; Args : Array of const); overload;
     procedure ParseExcTokenError(const Arg: string);
     procedure ParseExcExpectedAorB(const A, B: string);
     procedure LogLastMessage;
-    Function CreateRecovery(aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext;
-    Function CreateRecovery(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext;
-    Function CreateRecovery(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean; aScope : TPasScopeType) : TRecoveryContext;
+    Function CreateRecovery(aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext; overload;
+    Function CreateRecovery(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean = true) : TRecoveryContext; overload;
+    Function CreateRecovery(aResult : TPasElement; aError : Exception; aRestartTokens: TTokens; aUngetRestartToken: boolean; aScope : TPasScopeType) : TRecoveryContext; overload;
     // On True, continue parsing. aContext.Element will be freed if Engine allows it.
     function TryErrorRecovery(const aContext : TRecoveryContext) : boolean; virtual;
     // Overload handling
@@ -593,17 +596,17 @@ Var
 {$ifdef HasStreams}
 function ParseSource(AEngine: TPasTreeContainer;
                      const FPCCommandLine, OSTarget, CPUTarget: String;
-                     UseStreams  : Boolean): TPasModule; deprecated 'use version with options';
+                     UseStreams  : Boolean): TPasModule; overload; deprecated 'use version with options';
 {$endif}
 function ParseSource(AEngine: TPasTreeContainer;
-                     const FPCCommandLine, OSTarget, CPUTarget: String): TPasModule; deprecated 'use version with split command line';
+                     const FPCCommandLine, OSTarget, CPUTarget: String): TPasModule; overload; deprecated 'use version with split command line';
 function ParseSource(AEngine: TPasTreeContainer;
                      const FPCCommandLine, OSTarget, CPUTarget: String;
-                     Options : TParseSourceOptions): TPasModule; deprecated 'use version with split command line';
+                     Options : TParseSourceOptions): TPasModule; overload;deprecated 'use version with split command line';
 function ParseSource(AEngine: TPasTreeContainer;
                      const FPCCommandLine : Array of String;
                      OSTarget, CPUTarget: String;
-                     Options : TParseSourceOptions): TPasModule;
+                     Options : TParseSourceOptions): TPasModule; overload;
 
 Function IsHintToken(T : String; Out AHint : TPasMemberHint) : boolean;
 Function IsProcModifier(S : String; Out PM : TProcedureModifier) : Boolean;
@@ -612,7 +615,7 @@ Function TokenToAssignKind( tk : TToken) : TAssignKind;
 
 implementation
 
-{$IF FPC_FULLVERSION>=30301}
+{$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION>=30301)}
 uses strutils;
 {$ENDIF}
 
@@ -623,7 +626,7 @@ type
   TDeclType = (declNone, declConst, declResourcestring, declType,
                declVar, declThreadvar, declProperty, declExports);
 
-{$IF FPC_FULLVERSION<30301}
+{$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION<30301)}
 Function SplitCommandLine(S: String) : TStringDynArray;
 
   Function GetNextWord : String;
@@ -721,7 +724,7 @@ end;
 
 Function IsCallingConvention(S : String; out CC : TCallingConvention) : Boolean;
 
-Var
+const
   CCNames : Array[TCallingConvention] of String
          = ('','register','pascal','cdecl','stdcall','oldfpccall','safecall','syscall',
            'mwpascal', 'hardfloat','sysv_abi_default','sysv_abi_cdecl',
@@ -897,6 +900,7 @@ begin
       // TargetOS
       s := UpperCase(OSTarget);
       Scanner.AddDefine(s);
+      {$IFDEF FPC}
       Case s of
         'LINUX' : Scanner.AddDefine('UNIX');
         'FREEBSD' :
@@ -921,6 +925,7 @@ begin
         'MORPHOS' : Scanner.AddDefine('HASAMIGA');
         'AMIGA' : Scanner.AddDefine('HASAMIGA');
       end;
+      {$ENDIF}
       // TargetCPU
       s := UpperCase(CPUTarget);
       Scanner.AddDefine('CPU'+s);
@@ -1219,8 +1224,8 @@ constructor TPasParser.Create(AScanner: TPascalScanner;
 begin
   inherited Create;
   FScanner := AScanner;
-  if FScanner.OnModeChanged=nil then
-    FScanner.OnModeChanged:=@OnScannerModeChanged;
+  if not Assigned(FScanner.OnModeChanged) then
+    FScanner.OnModeChanged:={$IFDEF FPC}@{$ENDIF}OnScannerModeChanged;
   FFileResolver := AFileResolver;
   FTokenRingCur:=High(FTokenRing);
   FEngine := AEngine;
@@ -1240,8 +1245,11 @@ end;
 destructor TPasParser.Destroy;
 var
   i: Integer;
+  ChangeMethod: TPScannerModeDirective;
+
 begin
-  if FScanner.OnModeChanged=@OnScannerModeChanged then
+  ChangeMethod := OnScannerModeChanged;
+  if {$IFDEF DCC}@{$ENDIF}FScanner.OnModeChanged=@ChangeMethod then
     FScanner.OnModeChanged:=nil;
   if Assigned(FEngine) then
     begin
@@ -1457,7 +1465,7 @@ begin
     writeln('TPasParser.ParseExcTokenError String="',CurTokenString,'" Text="',CurTokenText,'" CurToken=',CurToken);
     {$ENDIF VerbosePasParserWriteln}
     S:='';
-    For T in TToken do
+    For T := Low(TToken) to High(TToken) do
       if t in tk then
         begin
         if (S<>'') then
@@ -2866,7 +2874,7 @@ const
                tkEqual, tkNotEqual, tkLessThan, tkLessEqualThan,
                tkGreaterThan, tkGreaterEqualThan, tkin, tkis];
 
-  function PopExp: TPasExpr; inline;
+  function PopExp: TPasExpr;
   begin
     if ExpStack.Count>0 then begin
       Result:=TPasExpr(ExpStack[ExpStack.Count-1]);
@@ -2884,7 +2892,7 @@ const
     OpStack[OpStackTop].SrcPos:=CurTokenPos;
   end;
 
-  function PeekOper: TToken; inline;
+  function PeekOper: TToken;
   begin
     if OpStackTop>=0 then Result:=OpStack[OpStackTop].Token
     else Result:=tkEOF;
@@ -4329,7 +4337,9 @@ begin
     end;
 end;
 
+{$IFDEF FPC}
 {$warn 5043 off}
+{$ENDIF}
 procedure TPasParser.ReadGenericArguments(List: TFPList; Parent: TPasElement);
 Var
   N : String;
@@ -4376,7 +4386,9 @@ begin
     ChangeToken(tkGreaterThan);
     end;
 end;
+{$IFDEF FPC}
 {$warn 5043 on}
+{$ENDIF}
 
 procedure TPasParser.ReadSpecializeArguments(Parent: TPasElement;
   Params: TFPList);

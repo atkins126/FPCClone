@@ -12,7 +12,7 @@
  **********************************************************************}
 
 Uses
-  Windows;
+  {$IFDEF DCC}Delphi.Helper{$ELSE}Windows{$ENDIF};
 
 
 Resourcestring

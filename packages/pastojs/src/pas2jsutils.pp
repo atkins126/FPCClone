@@ -18,12 +18,14 @@ unit Pas2JSUtils;
     Utility routines that do not need a filesystem or OS functionality.
     Filesystem-specific things should go to pas2jsfileutils instead.
 }
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 function ChompPathDelim(const Path: string): string;
 function GetNextDelimitedItem(const List: string; Delimiter: char;
@@ -41,15 +43,12 @@ const
 
 function NormalizeEncoding(const Encoding: string): string;
 function IsASCII(const s: string): boolean; inline;
-{$IFDEF FPC_HAS_CPSTRING}
 const
   UTF8BOM = #$EF#$BB#$BF;
 function UTF8CharacterStrictLength(P: PChar): integer;
 
 function UTF8ToUTF16(const s: string): UnicodeString;
 function UTF16ToUTF8(const s: UnicodeString): string;
-
-{$ENDIF FPC_HAS_CPSTRING}
 
 function IsNonUTF8System: boolean;// true if system encoding is not UTF-8
 {$IFDEF Windows}
@@ -192,10 +191,10 @@ begin
 end;
 {$ELSE}
 var
-  p: PChar;
+  p: PAnsiChar;
 begin
   if s='' then exit(true);
-  p:=PChar(s);
+  p:=PAnsiChar(s);
   repeat
     case p^ of
     #0: if p-PChar(s)=length(s) then exit(true);
@@ -206,9 +205,9 @@ begin
 end;
 {$ENDIF}
 
-{$IFDEF FPC_HAS_CPSTRING}
 function UTF8CharacterStrictLength(P: PChar): integer;
 begin
+{$IFDEF FPC_HAS_CPSTRING}
   if p=nil then exit(0);
   if ord(p^)<%10000000 then
   begin
@@ -248,6 +247,9 @@ begin
       exit(0);
   end else
     exit(0);
+{$ELSE}
+  Result := 0;
+{$ENDIF}
 end;
 
 function UTF8ToUTF16(const s: string): UnicodeString;
@@ -257,13 +259,16 @@ end;
 
 function UTF16ToUTF8(const s: UnicodeString): string;
 begin
+{$IFDEF FPC_HAS_CPSTRING}
   if s='' then exit('');
   Result:=UTF8Encode(s);
   // prevent UTF8 codepage appear in the strings - we don't need codepage
   // conversion magic
   SetCodePage(RawByteString(Result), CP_ACP, False);
-end;
+{$ELSE}
+  Result := S;
 {$ENDIF}
+end;
 
 function IsNonUTF8System: boolean;
 begin
@@ -296,6 +301,10 @@ begin
 
   {$IFDEF Pas2js}
   Result:=EncodingUTF8;
+  {$ELSE}
+    {$IFDEF DCC}
+      Result:=EncodingUTF8;
+    {$ENDIF}
   {$ELSE}
     {$IFDEF Windows}
     Result:=GetWindowsEncoding;
@@ -373,14 +382,14 @@ begin
               break;
             if ord(Params[p])<128 then
             begin
-              Param+=Params[p];
+              Param := Param + Params[p];
               inc(p);
             end else begin
               // next character is already a normal character
             end;
           end else begin
             // treat backslash as normal character
-            Param+='\';
+            Param := Param + '\';
           end;
         end;
       '''':
@@ -392,7 +401,7 @@ begin
           mApostrophe:
             Mode:=mNormal;
           mQuote:
-            Param+='''';
+            Param := Param + '''';
           end;
         end;
       '"':
@@ -402,7 +411,7 @@ begin
           mNormal:
             Mode:=mQuote;
           mApostrophe:
-            Param+='"';
+            Param := Param + '"';
           mQuote:
             Mode:=mNormal;
           end;
@@ -410,11 +419,11 @@ begin
       ' ',#9,#10,#13:
         begin
           if Mode=mNormal then break;
-          Param+=Params[p];
+          Param := Param + Params[p];
           inc(p);
         end;
       else
-        Param+=Params[p];
+        Param := Param + Params[p];
         inc(p);
       end;
     end;

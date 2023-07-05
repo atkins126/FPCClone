@@ -30,7 +30,7 @@ interface
 {off $DEFINE CheckAVLTreeNodeManager}
 
 uses
-  {$IFDEF MEM_CHECK}MemCheck,{$ENDIF}
+  {$IFDEF MEM_CHECK}MemCheck,{$ENDIF}{$IFDEF DCC}Delphi.Helper,{$ENDIF}
   Classes, SysUtils;
 
 type
@@ -102,9 +102,9 @@ type
                           const NewObjectCompare: TObjectSortCompare);
     procedure SetNodeClass(const AValue: TAVLTreeNodeClass);
   public
-    constructor Create(const OnCompareMethod: TListSortCompare);
+    constructor Create(const OnCompareMethod: TListSortCompare); overload;
     constructor CreateObjectCompare(const OnCompareMethod: TObjectSortCompare);
-    constructor Create;
+    constructor Create; overload;
     destructor Destroy; override;
     property OnCompare: TListSortCompare read FOnCompare write SetOnCompare;
     property OnObjectCompare: TObjectSortCompare read FOnObjectCompare write SetOnObjectCompare;
@@ -115,8 +115,8 @@ type
     procedure DisposeNode(ANode: TAVLTreeNode); virtual; // free the node outside the tree
 
     // add, delete, remove, move
-    procedure Add(ANode: TAVLTreeNode);
-    function Add(Data: Pointer): TAVLTreeNode;
+    procedure Add(ANode: TAVLTreeNode); overload;
+    function Add(Data: Pointer): TAVLTreeNode; overload;
     function AddAscendingSequence(Data: Pointer; LastAdded: TAVLTreeNode;
       var Successor: TAVLTreeNode): TAVLTreeNode;
     procedure Delete(ANode: TAVLTreeNode);
@@ -202,8 +202,8 @@ implementation
 
 function ComparePointer(Data1, Data2: Pointer): integer;
 begin
-  if Data1>Data2 then Result:=-1
-  else if Data1<Data2 then Result:=1
+  if NativeInt(Data1)>NativeInt(Data2) then Result:=-1
+  else if NativeInt(Data1)<NativeInt(Data2) then Result:=1
   else Result:=0;
 end;
 
@@ -452,7 +452,7 @@ end;
 
 procedure TAVLTree.SetOnObjectCompare(const AValue: TObjectSortCompare);
 begin
-  if AValue=nil then
+  if not Assigned(AValue) then
     SetCompares(FOnCompare,nil)
   else
     SetCompares(nil,AValue);
@@ -460,11 +460,12 @@ end;
 
 procedure TAVLTree.SetCompares(const NewCompare: TListSortCompare;
   const NewObjectCompare: TObjectSortCompare);
-var List: PPointer;
+var
+  List, SourceList: PPointer;
   ANode: TAVLTreeNode;
   i, OldCount: integer;
 begin
-  if (FOnCompare=NewCompare) and (FOnObjectCompare=NewObjectCompare) then exit;
+  if ({$IFDEF DCC}@{$ENDIF}FOnCompare={$IFDEF DCC}@{$ENDIF}NewCompare) and ({$IFDEF DCC}@{$ENDIF}FOnObjectCompare={$IFDEF DCC}@{$ENDIF}NewObjectCompare) then exit;
   if Count<=1 then begin
     FOnCompare:=NewCompare;
     FOnObjectCompare:=NewObjectCompare;
@@ -472,14 +473,17 @@ begin
   end;
   // sort the tree again
   OldCount:=Count;
-  GetMem(List,SizeOf(Pointer)*OldCount);
+  GetMem(SourceList,SizeOf(Pointer)*OldCount);
   try
     // save the data in a list
     ANode:=FindLowest;
-    i:=0;
-    while ANode<>nil do begin
-      List[i]:=ANode.Data;
-      inc(i);
+    List := SourceList;
+    while ANode<>nil do
+    begin
+      List^:=ANode.Data;
+
+      Inc(List);
+
       ANode:=ANode.Successor;
     end;
     // clear the tree
@@ -488,10 +492,15 @@ begin
     FOnCompare:=NewCompare;
     FOnObjectCompare:=NewObjectCompare;
     // re-add all nodes
+    List := SourceList;
     for i:=0 to OldCount-1 do
-      Add(List[i]);
+    begin
+      Add(List^);
+
+      Inc(List);
+    end;
   finally
-    FreeMem(List);
+    FreeMem(SourceList);
   end;
 end;
 
@@ -1183,8 +1192,8 @@ begin
   Result:=false;
   if aTree=nil then exit;
   if Count<>aTree.Count then exit;
-  if OnCompare<>aTree.OnCompare then exit;
-  if OnObjectCompare<>aTree.OnObjectCompare then exit;
+  if {$IFDEF DCC}@{$ENDIF}OnCompare<>{$IFDEF DCC}@{$ENDIF}aTree.OnCompare then exit;
+  if {$IFDEF DCC}@{$ENDIF}OnObjectCompare<>{$IFDEF DCC}@{$ENDIF}aTree.OnObjectCompare then exit;
   if NodeClass<>aTree.NodeClass then exit;
   MyNode:=FindLowest;
   OtherNode:=aTree.FindLowest;
@@ -1318,7 +1327,7 @@ end;
 
 procedure TAVLTree.SetOnCompare(const AValue: TListSortCompare);
 begin
-  if AValue=nil then
+  if not Assigned(AValue) then
     SetCompares(nil,FOnObjectCompare)
   else
     SetCompares(AValue,nil);

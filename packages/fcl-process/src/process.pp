@@ -10,8 +10,9 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
  **********************************************************************}
-{$mode objfpc}
-{$h+}
+{$IFDEF FPC}
+{$mode objfpc}{$H+}
+{$ENDIF}
 unit process;
 
 interface
@@ -19,7 +20,8 @@ interface
 Uses Classes,
      pipes,
      SysUtils,
-     Math;
+     Math
+     {$IFDEF DCC}, Winapi.Windows{$ENDIF};
 
 Type
   TProcessOption = (poRunSuspended,poWaitOnExit,
@@ -51,7 +53,9 @@ Type
   TProcessForkEvent = procedure(Sender : TObject) of object;
   {$endif UNIX}
 
+{$IFDEF FPC}
 {$macro on}
+{$ENDIF}
 {define processunicodestring}
 {$define TProcessnamemacro:=TProcess}
 

@@ -50,7 +50,7 @@ uses
   AVL_Tree,
   {$endif}
   Classes, SysUtils, Types, contnrs,
-  PasTree, PScanner, PasResolveEval, PasResolver;
+  PasTree, PScanner, PasResolveEval, PasResolver{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 const
   // non fpc hints
@@ -309,8 +309,8 @@ type
     procedure EmitMessage(Id: TMaxPrecInt; MsgType: TMessageType;
       MsgNumber: integer; Fmt: String;
       const Args: array of const;
-      PosEl: TPasElement);
-    procedure EmitMessage(Msg: TPAMessage);
+      PosEl: TPasElement); overload;
+    procedure EmitMessage(Msg: TPAMessage); overload;
     class function GetWarnIdentifierNumbers(Identifier: string;
       out MsgNumbers: TIntegerDynArray): boolean; virtual;
     function GetUsedElements: TFPList; virtual; // list of TPAElement
@@ -360,8 +360,8 @@ end;
 {$else}
 function ComparePointer(Data1, Data2: Pointer): integer;
 begin
-  if Data1>Data2 then Result:=-1
-  else if Data1<Data2 then Result:=1
+  if NativeInt(Data1)>NativeInt(Data2) then Result:=-1
+  else if NativeInt(Data1)<NativeInt(Data2) then Result:=1
   else Result:=0;
 end;
 
@@ -421,7 +421,11 @@ end;
 
 function dbgs(a: TPAIdentifierAccess): string;
 begin
+{$IFDEF DCC}
+  Result := TRttiEnumerationType.GetName(a);
+{$ELSE}
   str(a,Result);
+{$ENDIF}
 end;
 
 { TPasAnalyzerKeySet }
@@ -1177,7 +1181,7 @@ end;
 procedure TPasAnalyzer.UseTypeInfo(El: TPasElement);
 // mark typeinfo, do not mark code
 
-  procedure UseSubEl(SubEl: TPasElement); inline;
+  procedure UseSubEl(SubEl: TPasElement);
   begin
     if SubEl=nil then exit;
     MarkImplScopeRef(El,SubEl,psraTypeInfo);
@@ -1981,7 +1985,7 @@ end;
 procedure TPasAnalyzer.UseScopeReferences(Refs: TPasScopeReferences);
 begin
   if Refs=nil then exit;
-  Refs.References.ForEachCall(@OnUseScopeRef,Refs.Scope);
+  Refs.References.ForEachCall({$IFDEF FPC}@{$ENDIF}OnUseScopeRef,Refs.Scope);
 end;
 
 procedure TPasAnalyzer.UseProcedure(Proc: TPasProcedure);
@@ -2354,21 +2358,26 @@ begin
         continue;
         end;
       if IsCOMInterfaceRoot then
+      begin
+        var MemberName := lowercase(Member.Name);
+        if MemberName = 'queryinterface' then
         begin
-        case lowercase(Member.Name) of
-        'queryinterface':
           if (Proc.ProcType.Args.Count=2) then
             begin
             UseProcedure(Proc);
             continue;
             end;
-        '_addref':
+        end
+        else if MemberName = '_addref' then
+        begin
           if Proc.ProcType.Args.Count=0 then
             begin
             UseProcedure(Proc);
             continue;
             end;
-        '_release':
+        end
+        else if MemberName = '_release' then
+        begin
           if Proc.ProcType.Args.Count=0 then
             begin
             UseProcedure(Proc);
@@ -2376,7 +2385,7 @@ begin
             end;
         end;
         //writeln('TPasAnalyzer.UseClassType ',El.FullName,' ',Mode,' ',Member.Name);
-        end;
+      end;
       if Proc.MessageExpr<>nil then
         begin
         UseProcedure(Proc);
@@ -3170,9 +3179,9 @@ var
   oc: TPAOtherCheckedEl;
 begin
   CreateTree;
-  for m in TPAUseMode do
+  for m := Low(TPAUseMode) to High(TPAUseMode) do
     FModeChecked[m]:=CreatePasElementSet;
-  for oc in TPAOtherCheckedEl do
+  for oc := Low(TPAOtherCheckedEl) to High(TPAOtherCheckedEl) do
     FOtherChecked[oc]:=CreatePasElementSet;
   FOverrideLists:=TPasAnalyzerKeySet.Create(
     {$ifdef pas2js}
@@ -3190,9 +3199,9 @@ begin
   Clear;
   FreeAndNil(FOverrideLists);
   FreeAndNil(FUsedElements);
-  for m in TPAUseMode do
+  for m := Low(TPAUseMode) to High(TPAUseMode) do
     FreeAndNil(FModeChecked[m]);
-  for oc in TPAOtherCheckedEl do
+  for oc := Low(TPAOtherCheckedEl) to High(TPAOtherCheckedEl) do
     FreeAndNil(FOtherChecked[oc]);
   inherited Destroy;
 end;
@@ -3204,9 +3213,9 @@ var
 begin
   FOverrideLists.FreeItems;
   FUsedElements.FreeItems;
-  for m in TPAUseMode do
+  for m := Low(TPAUseMode) to High(TPAUseMode) do
     FModeChecked[m].Clear;
-  for oc in TPAOtherCheckedEl do
+  for oc := Low(TPAOtherCheckedEl) to High(TPAOtherCheckedEl) do
     FOtherChecked[oc].Clear;
 end;
 
@@ -3450,7 +3459,7 @@ class function TPasAnalyzer.GetWarnIdentifierNumbers(Identifier: string; out
 
   procedure SetNumber(Number: integer);
   begin
-    {$IF FPC_FULLVERSION>=30101}
+    {$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION>=30101)}
     MsgNumbers:=[Number];
     {$ELSE}
     Setlength(MsgNumbers,1);
@@ -3463,12 +3472,11 @@ begin
   if Identifier[1] in ['0'..'9'] then exit(false);
 
   Result:=true;
-  case UpperCase(Identifier) of
   // Delphi+FPC
-  'NO_RETVAL': SetNumber(nPAFunctionResultDoesNotSeemToBeSet); // Function result is not set.
+  if UpperCase(Identifier) = 'NO_RETVAL' then
+    SetNumber(nPAFunctionResultDoesNotSeemToBeSet) // Function result is not set.
   else
     Result:=false;
-  end;
 end;
 
 function TPasAnalyzer.GetUsedElements: TFPList;

@@ -78,9 +78,11 @@ Todo:
 }
 unit Pas2JsFiler;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
-{$IF FPC_FULLVERSION>=30300}
+{$IF DEFINED(FPC_FULLVERSION) AND (FPC_FULLVERSION>=30300)}
 {$WARN 6060 off : case statement does not handle all possible cases}
 {$ENDIF}
 
@@ -94,7 +96,7 @@ uses
   {$endif}
   fpjson, jsonparser, jsonscanner,
   PasTree, PScanner, PParser, PasResolveEval, PasResolver,
-  Pas2jsFileUtils, FPPas2Js, Pas2JSUtils, jsbase;
+  Pas2jsFileUtils, FPPas2Js, Pas2JSUtils, jsbase{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 const
   PCUMagic = 'Pas2JSCache';
@@ -696,7 +698,7 @@ type
     function GetSourceFiles(Index: integer): TPCUSourceFile;
   protected
     FElementRefs: TAVLTree; // tree of TPCUFilerElementRef sorted for Element
-    procedure RaiseMsg(Id: int64; const Msg: string = ''); virtual; overload;
+    procedure RaiseMsg(Id: int64; const Msg: string = ''); overload; virtual;
     procedure RaiseMsg(Id: int64; El: TPasElement; const Msg: string = ''); overload;
     function GetDefaultMemberVisibility(El: TPasElement): TPasMemberVisibility; virtual;
     function GetDefaultPasScopeVisibilityContext(Scope: TPasScope): TPasElement; virtual;
@@ -1290,11 +1292,11 @@ type
     destructor Destroy; override;
     procedure Clear;
     function Count: integer;
-    function Add(aFormat: TPas2JSPrecompileFormat): TPas2JSPrecompileFormats;
+    function Add(aFormat: TPas2JSPrecompileFormat): TPas2JSPrecompileFormats; overload;
     function Add(const Ext, Description: string;
       const Reader: TPCUReaderClass;
       const Writer: TPCUWriterClass
-      ): TPas2JSPrecompileFormat;
+      ): TPas2JSPrecompileFormat; overload;
     function IndexOf(aFormat: TPas2JSPrecompileFormat): integer;
     function FindExt(Ext: string): TPas2JSPrecompileFormat;
     function Remove(aFormat: TPas2JSPrecompileFormat): integer;
@@ -1315,8 +1317,8 @@ function CompareElWithPCUFilerElementRef(El, Ref: Pointer): integer;
 
 function EncodeVLQ(i: TMaxPrecInt): string; overload;
 function EncodeVLQ(i: TMaxPrecUInt): string; overload;
-function DecodeVLQ(const s: string): TMaxPrecInt; // base256 Variable Length Quantity
-function DecodeVLQ(var p: PByte): TMaxPrecInt; // base256 Variable Length Quantity
+function DecodeVLQ(const s: string): TMaxPrecInt; overload; // base256 Variable Length Quantity
+function DecodeVLQ(var p: PByte): TMaxPrecInt; overload; // base256 Variable Length Quantity
 
 function ComputeChecksum(p: PChar; Cnt: integer): TPCUSourceFileChecksum;
 function crc32(crc: cardinal; buf: Pbyte; len: cardinal): cardinal;
@@ -1341,8 +1343,8 @@ end;
 
 function ComparePointer(Data1, Data2: Pointer): integer;
 begin
-  if Data1>Data2 then Result:=-1
-  else if Data1<Data2 then Result:=1
+  if NativeInt(Data1)>NativeInt(Data2) then Result:=-1
+  else if NativeInt(Data1)<NativeInt(Data2) then Result:=1
   else Result:=0;
 end;
 
@@ -1390,7 +1392,7 @@ begin
     begin
     if i=Low(TMaxPrecInt) then
       begin
-      Result:=EncodeVLQ(High(TMaxPrecInt)+1);
+      Result:=EncodeVLQ(High(TMaxPrecInt));
       Result[1]:=chr(ord(Result[1]) or 1);
       exit;
       end;
@@ -1670,7 +1672,7 @@ function StrToPasIdentifierKind(const s: string): TPasIdentifierKind;
 var
   Kind: TPasIdentifierKind;
 begin
-  for Kind in TPasIdentifierKind do
+  for Kind := Low(TPasIdentifierKind) to High(TPasIdentifierKind) do
     if s=PCUIdentifierKindNames[Kind] then
       exit(Kind);
   Result:=pikNone;
@@ -1922,7 +1924,6 @@ var
   Section: TPasSection;
   Scope: TPas2JSSectionScope;
 begin
-  Result:=false;
   Module:=Resolver.RootElement;
   if Module=nil then exit(true); // not yet started
   Section:=Resolver.GetLastSection;
@@ -2461,7 +2462,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TPOptions do
+  for f := Low(TPOption) to High(TPOption) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUParserOptionNames[f],f in Value);
 end;
@@ -2474,7 +2475,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TModeSwitch do
+  for f := Low(TModeSwitch) to High(TModeSwitch) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUModeSwitchNames[f],f in Value);
 end;
@@ -2487,7 +2488,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TBoolSwitch do
+  for f := Low(TBoolSwitch) to High(TBoolSwitch) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUBoolSwitchNames[f],f in Value);
 end;
@@ -2500,7 +2501,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TPasToJsConverterOption do
+  for f := Low(TPasToJsConverterOption) to High(TPasToJsConverterOption) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUConverterOptions[f],f in Value);
 end;
@@ -2565,7 +2566,7 @@ var
   f: TPasMemberHint;
 begin
   Arr:=nil;
-  for f in TPasMemberHints do
+  for f := Low(TPasMemberHint) to High(TPasMemberHint) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,'Hints',PCUMemberHintNames[f],f in Value);
 end;
@@ -2578,7 +2579,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TVariableModifier do
+  for f := Low(TVariableModifier) to High(TVariableModifier) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUVarModifierNames[f],f in Value);
 end;
@@ -2626,7 +2627,7 @@ var
   f: TPasModuleScopeFlag;
 begin
   Arr:=nil;
-  for f in TPasModuleScopeFlags do
+  for f := Low(TPasModuleScopeFlag) to High(TPasModuleScopeFlag) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,'ScopeFlags',PCUModuleScopeFlagNames[f],f in Value);
 end;
@@ -3170,7 +3171,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TResolvedReferenceFlag do
+  for f := Low(TResolvedReferenceFlag) to High(TResolvedReferenceFlag) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUResolvedReferenceFlagNames[f],f in Value);
 end;
@@ -4201,7 +4202,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TPasClassScopeFlag do
+  for f := Low(TPasClassScopeFlag) to High(TPasClassScopeFlag) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUClassScopeFlagNames[f],f in Value);
 end;
@@ -4403,7 +4404,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TProcTypeModifier do
+  for f := Low(TProcTypeModifier) to High(TProcTypeModifier) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUProcTypeModifierNames[f],f in Value);
 end;
@@ -4592,7 +4593,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TProcedureModifier do
+  for f := Low(TProcedureModifier) to High(TProcedureModifier) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUProcedureModifierNames[f],f in Value);
 end;
@@ -4605,7 +4606,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TPasProcedureScopeFlag do
+  for f := Low(TPasProcedureScopeFlag) to High(TPasProcedureScopeFlag) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUProcedureScopeFlagNames[f],f in Value);
 end;
@@ -4865,7 +4866,7 @@ var
 begin
   if Value=DefaultValue then exit;
   Arr:=nil;
-  for f in TPasWithExprScopeFlags do
+  for f := Low(TPasWithExprScopeFlag) to High(TPasWithExprScopeFlag) do
     if (f in Value)<>(f in DefaultValue) then
       AddArrayFlag(Obj,Arr,PropName,PCUResolverWithExprScopeFlagNames[f],f in Value);
 end;
@@ -6246,7 +6247,7 @@ begin
     if not ReadInteger(SubObj,'Id',Id,ErrorEl) then
       RaiseMsg(20180215153028,ErrorEl,aName);
     Found:=false;
-    for bt in TResolverBaseType do
+    for bt := Low(TResolverBaseType) to High(TResolverBaseType) do
       begin
       El:=Resolver.BaseTypes[bt];
       if (El<>nil) and (CompareText(El.Name,aName)=0) then
@@ -6258,7 +6259,7 @@ begin
       end;
     if not Found then
       begin
-      for bp in TResolverBuiltInProc do
+      for bp := Low(TResolverBuiltInProc) to High(TResolverBuiltInProc) do
         begin
         BuiltInProc:=Resolver.BuiltInProcs[bp];
         if BuiltInProc=nil then continue;
@@ -6279,7 +6280,7 @@ begin
       end;
     if not Found then
       begin
-      for pbt in TPas2jsBaseType do
+      for pbt := Low(TPas2jsBaseType) to High(TPas2jsBaseType) do
         begin
         El:=Resolver.JSBaseTypes[pbt];
         if El=nil then continue;
@@ -6293,7 +6294,7 @@ begin
       end;
     if not Found then
       begin
-      for pbp in TPas2jsBuiltInProc do
+      for pbp := Low(TPas2jsBuiltInProc) to High(TPas2jsBuiltInProc) do
         begin
         BuiltInProc:=Resolver.JSBuiltInProcs[pbp];
         if BuiltInProc=nil then continue;
@@ -6367,7 +6368,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPOption do
+    for f := Low(TPOption) to High(TPOption) do
       if s=PCUParserOptionNames[f] then
         begin
         if Enable[i] then
@@ -6406,7 +6407,7 @@ begin
     Found:=false;
     if (FileVersion<5) and (SameText(s,'multiplescopehelpers')) then
       s:=PCUModeSwitchNames[msMultiHelpers];
-    for f in TModeSwitch do
+    for f := Low(TModeSwitch) to High(TModeSwitch) do
       if s=PCUModeSwitchNames[f] then
         begin
         if Enable[i] then
@@ -6448,7 +6449,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TBoolSwitch do
+    for f := Low(TBoolSwitch) to High(TBoolSwitch) do
       if s=PCUBoolSwitchNames[f] then
         begin
         if Enable[i] then
@@ -6486,7 +6487,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPasToJsConverterOption do
+    for f := Low(TPasToJsConverterOption) to High(TPasToJsConverterOption) do
       if s=PCUConverterOptions[f] then
         begin
         if Enable[i] then
@@ -6510,7 +6511,7 @@ begin
   writeln('TPCUReader.ReadTargetPlatform START');
   {$ENDIF}
   s:=CheckJSONString(Data,20180203100215);
-  for p in TPasToJsPlatform do
+  for p := Low(TPasToJsPlatform) to High(TPasToJsPlatform) do
     if s=PCUTargetPlatformNames[p] then
       begin
       InitialFlags.TargetPlatform:=p;
@@ -6528,7 +6529,7 @@ begin
   writeln('TPCUReader.ReadTargetProcessor START');
   {$ENDIF}
   s:=CheckJSONString(Data,20180203100235);
-  for p in TPasToJsProcessor do
+  for p := Low(TPasToJsProcessor) to High(TPasToJsProcessor) do
     if s=PCUTargetProcessorNames[p] then
       begin
       InitialFlags.TargetProcessor:=p;
@@ -6566,12 +6567,11 @@ begin
       begin
       PropName:=Src.Names[j];
       Data:=Src.Elements[PropName];
-      case PropName of
-      'Type':
+      if PropName = 'Type' then
         begin
         s:=CheckJSONString(Data,20180203101322);
         Found:=false;
-        for ft in TPCUSourceFileType do
+        for ft := Low(TPCUSourceFileType) to High(TPCUSourceFileType) do
           if s=PCUSourceFileTypeNames[ft] then
             begin
             Found:=true;
@@ -6580,8 +6580,8 @@ begin
             end;
         if not Found then
           RaiseMsg(20180202144347,'unknown filetype "'+s+'"');
-        end;
-      'File':
+        end
+      else if PropName = 'File' then
         begin
         CurFilename:=CheckJSONString(Data,20180203100410);
         if CurFilename='' then
@@ -6594,12 +6594,11 @@ begin
         if ExtractFilenameOnly(CurFilename)='' then
           RaiseMsg(20180130203924);
         CurFile.Filename:=CurFilename;
-        end;
-      'CheckSum':
-        CurFile.Checksum:=Data.AsInt64;
+        end
+      else if PropName = 'CheckSum' then
+        CurFile.Checksum:=Data.AsInt64
       else
         RaiseMsg(20180202152628,'unknown file property "'+PropName+'"');
-      end;
       end;
     end;
 end;
@@ -6626,7 +6625,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPasMemberHint do
+    for f := Low(TPasMemberHint) to High(TPasMemberHint) do
       if s=PCUMemberHintNames[f] then
         begin
         if Enable[i] then
@@ -6695,7 +6694,7 @@ procedure TPCUReader.ReadPasElement(Obj: TJSONObject; El: TPasElement;
   var
     vis: TPasMemberVisibility;
   begin
-    for vis in TPasMemberVisibility do
+    for vis := Low(TPasMemberVisibility) to High(TPasMemberVisibility) do
       if PCUMemberVisibilityNames[vis]=s then
         exit(vis);
     RaiseMsg(20180205134334,El,s);
@@ -7385,7 +7384,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TResolvedReferenceFlag do
+    for f := Low(TResolvedReferenceFlag) to High(TResolvedReferenceFlag) do
       if s=PCUResolvedReferenceFlagNames[f] then
         begin
         if Enable[i] then
@@ -7407,13 +7406,13 @@ var
   s: string;
   a: TResolvedRefAccess;
 begin
-  ReadElementReference(Obj,Ref,'RefDecl',@Set_ResolvedReference_Declaration);
+  ReadElementReference(Obj,Ref,'RefDecl',{$IFDEF FPC}@{$ENDIF}Set_ResolvedReference_Declaration);
   Ref.Flags:=ReadResolvedRefFlags(Obj,ErrorEl,'RefFlags',[]);
   Ref.Access:=rraRead;
   if ReadString(Obj,'RefAccess',s,ErrorEl) then
     begin
     Found:=false;
-    for a in TResolvedRefAccess do
+    for a := Low(TResolvedRefAccess) to High(TResolvedRefAccess) do
       if s=PCUResolvedRefAccessNames[a] then
         begin
         Ref.Access:=a;
@@ -7426,12 +7425,12 @@ begin
   if Obj.Find('RefConstructorType')<>nil then
     begin
     Ref.Context:=TResolvedRefCtxConstructor.Create;
-    ReadElementReference(Obj,Ref,'RefConstructorType',@Set_ResolvedReference_CtxConstructor);
+    ReadElementReference(Obj,Ref,'RefConstructorType',{$IFDEF FPC}@{$ENDIF}Set_ResolvedReference_CtxConstructor);
     end
   else if Obj.Find('RefAttrProc')<>nil then
     begin
     Ref.Context:=TResolvedRefCtxAttrProc.Create;
-    ReadElementReference(Obj,Ref,'RefAttrProc',@Set_ResolvedReference_CtxAttrProc);
+    ReadElementReference(Obj,Ref,'RefAttrProc',{$IFDEF FPC}@{$ENDIF}Set_ResolvedReference_CtxAttrProc);
     end;
   {$IFDEF EnableStoreExprRef}
   if ReadInteger(Obj,'WithEl',i,ErrorEl) then
@@ -7463,7 +7462,7 @@ begin
   if ReadString(Obj,'Kind',s,Expr) then
     begin
     Found:=false;
-    for Kind in TPasExprKind do
+    for Kind := Low(TPasExprKind) to High(TPasExprKind) do
       if s=PCUExprKindNames[Kind] then
         begin
         Expr.Kind:=Kind;
@@ -7476,7 +7475,7 @@ begin
   if ReadString(Obj,'Op',s,Expr) then
     begin
     Found:=false;
-    for Op in TExprOpCode do
+    for Op := Low(TExprOpCode) to High(TExprOpCode) do
       if s=PCUExprOpCodeNames[Op] then
         begin
         Expr.OpCode:=Op;
@@ -7594,7 +7593,7 @@ begin
     if Id=0 then
       Scope.VisibilityContext:=nil
     else
-      ReadElementReference(Obj,Scope,'VisibilityContext',@Set_PasScope_VisibilityContext);
+      ReadElementReference(Obj,Scope,'VisibilityContext',{$IFDEF FPC}@{$ENDIF}Set_PasScope_VisibilityContext);
     end;
   if aContext=nil then ;
 end;
@@ -7628,7 +7627,7 @@ begin
     if ReadString(SubObj,'Access',s,El) then
       begin
       Found:=false;
-      for Access in TPSRefAccess do
+      for Access := Low(TPSRefAccess) to High(TPSRefAccess) do
         if s=PCUPSRefAccessNames[Access] then
           begin
           Found:=true;
@@ -7740,7 +7739,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPasModuleScopeFlag do
+    for f := Low(TPasModuleScopeFlag) to High(TPasModuleScopeFlag) do
       if s=PCUModuleScopeFlagNames[f] then
         begin
         if Enable[i] then
@@ -7767,13 +7766,13 @@ begin
   Scope.FirstName:=FirstDottedIdentifier(aModule.Name);
   Scope.Flags:=ReadModuleScopeFlags(Obj,aModule,PCUDefaultModuleScopeFlags);
   Scope.BoolSwitches:=ReadBoolSwitches(Obj,aModule,'BoolSwitches',aContext.BoolSwitches);
-  ReadElementReference(Obj,Scope,'AssertClass',@Set_ModScope_AssertClass);
-  ReadElementReference(Obj,Scope,'AssertDefConstructor',@Set_ModScope_AssertDefConstructor);
-  ReadElementReference(Obj,Scope,'AssertMsgConstructor',@Set_ModScope_AssertMsgConstructor);
-  ReadElementReference(Obj,Scope,'RangeErrorClass',@Set_ModScope_RangeErrorClass);
-  ReadElementReference(Obj,Scope,'RangeErrorConstructor',@Set_ModScope_RangeErrorConstructor);
-  ReadElementReference(Obj,Scope,'SystemTVarRec',@Set_ModScope_SystemTVarRec);
-  ReadElementReference(Obj,Scope,'SystemVarRecs',@Set_ModScope_SystemVarRecs);
+  ReadElementReference(Obj,Scope,'AssertClass',{$IFDEF FPC}@{$ENDIF}Set_ModScope_AssertClass);
+  ReadElementReference(Obj,Scope,'AssertDefConstructor',{$IFDEF FPC}@{$ENDIF}Set_ModScope_AssertDefConstructor);
+  ReadElementReference(Obj,Scope,'AssertMsgConstructor',{$IFDEF FPC}@{$ENDIF}Set_ModScope_AssertMsgConstructor);
+  ReadElementReference(Obj,Scope,'RangeErrorClass',{$IFDEF FPC}@{$ENDIF}Set_ModScope_RangeErrorClass);
+  ReadElementReference(Obj,Scope,'RangeErrorConstructor',{$IFDEF FPC}@{$ENDIF}Set_ModScope_RangeErrorConstructor);
+  ReadElementReference(Obj,Scope,'SystemTVarRec',{$IFDEF FPC}@{$ENDIF}Set_ModScope_SystemTVarRec);
+  ReadElementReference(Obj,Scope,'SystemVarRecs',{$IFDEF FPC}@{$ENDIF}Set_ModScope_SystemVarRecs);
 
   if ReadObject(Obj,'LocalVars',SubObj,aModule) then
     begin
@@ -7789,7 +7788,7 @@ begin
       LocalVar.Name:=SubObj.Names[i];
       if not IsValidJSIdentifier(TJSString(LocalVar.Name)) then
         RaiseMsg(20201023015048,aModule);
-      ReadElementReference(SubObj,LocalVar,LocalVar.Name,@Set_LocalVar);
+      ReadElementReference(SubObj,LocalVar,LocalVar.Name,{$IFDEF FPC}@{$ENDIF}Set_LocalVar);
       end;
     end;
 
@@ -7811,11 +7810,14 @@ begin
   Obj:=TJSONObject(Data);
   aName:=String(Obj.Get('Name',''));
   aType:=String(Obj.Get('Type',''));
-  case aType of
-  'Unit': aModule:=TPasModule(CreateElement(TPasModule,aName,nil));
-  'Program': aModule:=TPasProgram(CreateElement(TPasProgram,aName,nil));
-  'Library': aModule:=TPasLibrary(CreateElement(TPasLibrary,aName,nil));
+  if aType = 'Unit' then
+    aModule:=TPasModule(CreateElement(TPasModule,aName,nil))
+  else if aType = 'Program' then
+    aModule:=TPasProgram(CreateElement(TPasProgram,aName,nil))
+  else if aType = 'Library' then
+    aModule:=TPasLibrary(CreateElement(TPasLibrary,aName,nil))
   else
+  begin
     {$IFDEF VerbosePCUFiler}
     writeln('TPCUReader.ReadModuleHeader Type="',aType,'"');
     {$ENDIF}
@@ -7888,175 +7890,195 @@ begin
   {$IFDEF VerbosePCUFiler}
   writeln('TPCUReader.ReadNewElement Parent=',GetObjName(Parent),' Type="',aType,'" Name="',Name,'"');
   {$ENDIF}
-  case aType of
-  'Unary':
-    Result:=CreateElement(TUnaryExpr,Name,Parent);
-  'Binary':
+    if aType = 'Unary' then
+    Result:=CreateElement(TUnaryExpr,Name,Parent)
+  else if aType = 'Binary' then
     begin
     Result:=CreateElement(TBinaryExpr,Name,Parent);
     TBinaryExpr(Result).Kind:=pekBinary;
     TBinaryExpr(Result).OpCode:=eopAdd;
-    end;
-  'Ident': ReadPrimitive(pekIdent);
-  'Number': ReadPrimitive(pekNumber);
-  'String': ReadPrimitive(pekString);
-  'Bool':
+    end
+  else if aType = 'Ident' then
+    ReadPrimitive(pekIdent)
+  else if aType = 'Number' then
+    ReadPrimitive(pekNumber)
+  else if aType = 'String' then
+    ReadPrimitive(pekString)
+  else if aType = 'Bool' then
     begin
     Result:=CreateElement(TBoolConstExpr,'',Parent);
     TBoolConstExpr(Result).Kind:=pekBoolConst;
     TBoolConstExpr(Result).Value:=false;
-    end;
-  'False','True':
+    end
+  else if (aType = 'False') or (aType = 'True') then
     begin
     Result:=CreateElement(TBoolConstExpr,'',Parent);
     TBoolConstExpr(Result).Kind:=pekBoolConst;
     TBoolConstExpr(Result).Value:=aType='True';
-    end;
-  'Nil':
+    end
+  else if aType = 'Nil' then
     begin
     Result:=CreateElement(TNilExpr,'nil',Parent);
     TNilExpr(Result).Kind:=pekNil;
-    end;
-  'Inherited':
+    end
+  else if aType = 'Inherited' then
     begin
     Result:=CreateElement(TInheritedExpr,'',Parent);
     TInheritedExpr(Result).Kind:=pekInherited;
-    end;
-  'Self':
+    end
+  else if aType = 'Self' then
     begin
     Result:=CreateElement(TSelfExpr,'',Parent);
     TSelfExpr(Result).Kind:=pekSelf;
-    end;
-  'A[]':
-    ReadParams(pekArrayParams);
-  'F()':
-    ReadParams(pekFuncParams);
-  '[]':
-    ReadParams(pekSet);
-  'ProcExpr':
-    Result:=CreateElement(TProcedureExpr,Name,Parent);
-  'RecValues':
+    end
+  else if aType = 'A[]' then
+    ReadParams(pekArrayParams)
+  else if aType = 'F()' then
+    ReadParams(pekFuncParams)
+  else if aType = '[]' then
+    ReadParams(pekSet)
+  else if aType = 'ProcExpr' then
+    Result:=CreateElement(TProcedureExpr,Name,Parent)
+  else if aType = 'RecValues' then
     begin
     Result:=CreateElement(TRecordValues,'',Parent);
     TRecordValues(Result).Kind:=pekListOfExp;
-    end;
-  'ArrValues':
+    end
+  else if aType = 'ArrValues' then
     begin
     Result:=CreateElement(TArrayValues,'',Parent);
     TArrayValues(Result).Kind:=pekListOfExp;
-    end;
-  'ResString':
-    Result:=CreateElement(TPasResString,Name,Parent);
-  'Alias':
-    Result:=CreateElement(TPasAliasType,Name,Parent);
-  'Pointer':
-    Result:=CreateElement(TPasPointerType,Name,Parent);
-  'TypeAlias':
-    Result:=CreateElement(TPasTypeAliasType,Name,Parent);
-  'ClassOf':
-    Result:=CreateElement(TPasClassOfType,Name,Parent);
-  'Specialize':
-    Result:=CreateElement(TPasSpecializeType,Name,Parent);
-  'InlineSpecialize':
-    Result:=CreateElement(TInlineSpecializeExpr,Name,Parent);
-  'RangeType':
-    Result:=CreateElement(TPasRangeType,Name,Parent);
-  'ArrType':
-    Result:=CreateElement(TPasArrayType,Name,Parent);
-  'File':
-    Result:=CreateElement(TPasFileType,Name,Parent);
-  'EnumV':
-    Result:=CreateElement(TPasEnumValue,Name,Parent);
-  'EnumType':
-    Result:=CreateElement(TPasEnumType,Name,Parent);
-  'SetType':
-    Result:=CreateElement(TPasSetType,Name,Parent);
-  'RecVariant':
-    Result:=CreateElement(TPasVariant,Name,Parent);
-  'Record':
-    Result:=CreateElement(TPasRecordType,Name,Parent);
-  'Object': CreateClassType(okObject,Name);
-  'Class': CreateClassType(okClass,Name);
-  'Interface': CreateClassType(okInterface,Name);
-  'ClassHelper': CreateClassType(okClassHelper,Name);
-  'RecordHelper': CreateClassType(okRecordHelper,Name);
-  'TypeHelper': CreateClassType(okTypeHelper,Name);
-  'DispInterface': CreateClassType(okDispInterface,Name);
-  'Arg':
-    Result:=CreateElement(TPasArgument,Name,Parent);
-  'ProcType':
-    Result:=CreateElement(TPasProcedureType,Name,Parent);
-  'FuncType':
-    Result:=CreateElement(TPasFunctionType,Name,Parent);
-  'Result':
-    Result:=CreateElement(TPasResultElement,Name,Parent);
-  'StringType':
-    Result:=CreateElement(TPasStringType,Name,Parent);
-  'Var':
-    Result:=CreateElement(TPasVariable,Name,Parent);
-  'Export':
-    Result:=CreateElement(TPasExportSymbol,Name,Parent);
-  'Const':
-    Result:=CreateElement(TPasConst,Name,Parent);
-  'Property':
-    Result:=CreateElement(TPasProperty,Name,Parent);
-  'MethodRes':
-    Result:=CreateElement(TPasMethodResolution,Name,Parent);
-  'Procedure': ReadProc(TPasProcedure,Name);
-  'ClassProcedure': ReadProc(TPasClassProcedure,Name);
-  'Function': ReadProc(TPasFunction,Name);
-  'ClassFunction': ReadProc(TPasClassFunction,Name);
-  'Constructor': ReadProc(TPasConstructor,Name);
-  'ClassConstructor': ReadProc(TPasClassConstructor,Name);
-  'Destructor': ReadProc(TPasDestructor,Name);
-  'ClassDestructor': ReadProc(TPasClassDestructor,Name);
-  'AnonymousProcedure': ReadProc(TPasAnonymousProcedure,Name);
-  'AnonymousFunction': ReadProc(TPasAnonymousFunction,Name);
-  'Operator': ReadOper(TPasOperator,Name);
-  'ClassOperator': ReadOper(TPasClassOperator,Name);
-  'Attributes':
-    Result:=CreateElement(TPasAttributes,Name,Parent);
-  'ImplCmd':
-    Result:=CreateElement(TPasImplCommand,Name,Parent);
-  'Begin':
-    Result:=CreateElement(TPasImplBeginBlock,Name,Parent);
-  'Asm':
-    Result:=CreateElement(TPasImplAsmStatement,Name,Parent);
-  'Repeat':
-    Result:=CreateElement(TPasImplRepeatUntil,Name,Parent);
-  'If':
-    Result:=CreateElement(TPasImplIfElse,Name,Parent);
-  'While':
-    Result:=CreateElement(TPasImplWhileDo,Name,Parent);
-  'With':
-    Result:=CreateElement(TPasImplWithDo,Name,Parent);
-  'CaseOf':
-    Result:=CreateElement(TPasImplCaseOf,Name,Parent);
-  'CaseSt':
-    Result:=CreateElement(TPasImplCaseStatement,Name,Parent);
-  'CaseElse':
-    Result:=CreateElement(TPasImplCaseElse,Name,Parent);
-  'ForLoop':
-    Result:=CreateElement(TPasImplForLoop,Name,Parent);
-  'Assign':
-    Result:=CreateElement(TPasImplAssign,Name,Parent);
-  'Simple':
-    Result:=CreateElement(TPasImplSimple,Name,Parent);
-  'Try':
-    Result:=CreateElement(TPasImplTry,Name,Parent);
-  'Finally':
-    Result:=CreateElement(TPasImplTryFinally,Name,Parent);
-  'Except':
-    Result:=CreateElement(TPasImplTryExcept,Name,Parent);
-  'ExceptElse':
-    Result:=CreateElement(TPasImplTryExceptElse,Name,Parent);
-  'ExceptOn':
-    Result:=CreateElement(TPasImplExceptOn,Name,Parent);
-  'Raise':
-    Result:=CreateElement(TPasImplRaise,Name,Parent);
+    end
+  else if aType = 'ResString' then
+    Result:=CreateElement(TPasResString,Name,Parent)
+  else if aType = 'Alias' then
+    Result:=CreateElement(TPasAliasType,Name,Parent)
+  else if aType = 'Pointer' then
+    Result:=CreateElement(TPasPointerType,Name,Parent)
+  else if aType = 'TypeAlias' then
+    Result:=CreateElement(TPasTypeAliasType,Name,Parent)
+  else if aType = 'ClassOf' then
+    Result:=CreateElement(TPasClassOfType,Name,Parent)
+  else if aType = 'Specialize' then
+    Result:=CreateElement(TPasSpecializeType,Name,Parent)
+  else if aType = 'InlineSpecialize' then
+    Result:=CreateElement(TInlineSpecializeExpr,Name,Parent)
+  else if aType = 'RangeType' then
+    Result:=CreateElement(TPasRangeType,Name,Parent)
+  else if aType = 'ArrType' then
+    Result:=CreateElement(TPasArrayType,Name,Parent)
+  else if aType = 'File' then
+    Result:=CreateElement(TPasFileType,Name,Parent)
+  else if aType = 'EnumV' then
+    Result:=CreateElement(TPasEnumValue,Name,Parent)
+  else if aType = 'EnumType' then
+    Result:=CreateElement(TPasEnumType,Name,Parent)
+  else if aType = 'SetType' then
+    Result:=CreateElement(TPasSetType,Name,Parent)
+  else if aType = 'RecVariant' then
+    Result:=CreateElement(TPasVariant,Name,Parent)
+  else if aType = 'Record' then
+    Result:=CreateElement(TPasRecordType,Name,Parent)
+  else if aType = 'Object' then
+    CreateClassType(okObject,Name)
+  else if aType = 'Class' then
+    CreateClassType(okClass,Name)
+  else if aType = 'Interface' then
+    CreateClassType(okInterface,Name)
+  else if aType = 'ClassHelper' then
+    CreateClassType(okClassHelper,Name)
+  else if aType = 'RecordHelper' then
+    CreateClassType(okRecordHelper,Name)
+  else if aType = 'TypeHelper' then
+    CreateClassType(okTypeHelper,Name)
+  else if aType = 'DispInterface' then
+    CreateClassType(okDispInterface,Name)
+  else if aType = 'Arg' then
+    Result:=CreateElement(TPasArgument,Name,Parent)
+  else if aType = 'ProcType' then
+    Result:=CreateElement(TPasProcedureType,Name,Parent)
+  else if aType = 'FuncType' then
+    Result:=CreateElement(TPasFunctionType,Name,Parent)
+  else if aType = 'Result' then
+    Result:=CreateElement(TPasResultElement,Name,Parent)
+  else if aType = 'StringType' then
+    Result:=CreateElement(TPasStringType,Name,Parent)
+  else if aType = 'Var' then
+    Result:=CreateElement(TPasVariable,Name,Parent)
+  else if aType = 'Export' then
+    Result:=CreateElement(TPasExportSymbol,Name,Parent)
+  else if aType = 'Const' then
+    Result:=CreateElement(TPasConst,Name,Parent)
+  else if aType = 'Property' then
+    Result:=CreateElement(TPasProperty,Name,Parent)
+  else if aType = 'MethodRes' then
+    Result:=CreateElement(TPasMethodResolution,Name,Parent)
+  else if aType = 'Procedure' then
+    ReadProc(TPasProcedure,Name)
+  else if aType = 'ClassProcedure' then
+    ReadProc(TPasClassProcedure,Name)
+  else if aType = 'Function' then
+    ReadProc(TPasFunction,Name)
+  else if aType = 'ClassFunction' then
+    ReadProc(TPasClassFunction,Name)
+  else if aType = 'Constructor' then
+    ReadProc(TPasConstructor,Name)
+  else if aType = 'ClassConstructor' then
+    ReadProc(TPasClassConstructor,Name)
+  else if aType = 'Destructor' then
+    ReadProc(TPasDestructor,Name)
+  else if aType = 'ClassDestructor' then
+    ReadProc(TPasClassDestructor,Name)
+  else if aType = 'AnonymousProcedure' then
+    ReadProc(TPasAnonymousProcedure,Name)
+  else if aType = 'AnonymousFunction' then
+    ReadProc(TPasAnonymousFunction,Name)
+  else if aType = 'Operator' then
+    ReadOper(TPasOperator,Name)
+  else if aType = 'ClassOperator' then
+    ReadOper(TPasClassOperator,Name)
+  else if aType = 'Attributes' then
+    Result:=CreateElement(TPasAttributes,Name,Parent)
+  else if aType = 'ImplCmd' then
+    Result:=CreateElement(TPasImplCommand,Name,Parent)
+  else if aType = 'Begin' then
+    Result:=CreateElement(TPasImplBeginBlock,Name,Parent)
+  else if aType = 'Asm' then
+    Result:=CreateElement(TPasImplAsmStatement,Name,Parent)
+  else if aType = 'Repeat' then
+    Result:=CreateElement(TPasImplRepeatUntil,Name,Parent)
+  else if aType = 'If' then
+    Result:=CreateElement(TPasImplIfElse,Name,Parent)
+  else if aType = 'While' then
+    Result:=CreateElement(TPasImplWhileDo,Name,Parent)
+  else if aType = 'With' then
+    Result:=CreateElement(TPasImplWithDo,Name,Parent)
+  else if aType = 'CaseOf' then
+    Result:=CreateElement(TPasImplCaseOf,Name,Parent)
+  else if aType = 'CaseSt' then
+    Result:=CreateElement(TPasImplCaseStatement,Name,Parent)
+  else if aType = 'CaseElse' then
+    Result:=CreateElement(TPasImplCaseElse,Name,Parent)
+  else if aType = 'ForLoop' then
+    Result:=CreateElement(TPasImplForLoop,Name,Parent)
+  else if aType = 'Assign' then
+    Result:=CreateElement(TPasImplAssign,Name,Parent)
+  else if aType = 'Simple' then
+    Result:=CreateElement(TPasImplSimple,Name,Parent)
+  else if aType = 'Try' then
+    Result:=CreateElement(TPasImplTry,Name,Parent)
+  else if aType = 'Finally' then
+    Result:=CreateElement(TPasImplTryFinally,Name,Parent)
+  else if aType = 'Except' then
+    Result:=CreateElement(TPasImplTryExcept,Name,Parent)
+  else if aType = 'ExceptElse' then
+    Result:=CreateElement(TPasImplTryExceptElse,Name,Parent)
+  else if aType = 'ExceptOn' then
+    Result:=CreateElement(TPasImplExceptOn,Name,Parent)
+  else if aType = 'Raise' then
+    Result:=CreateElement(TPasImplRaise,Name,Parent)
   else
     RaiseMsg(20200514220001,Parent,'unknown type "'+LeftStr(aType,100)+'"');
-  end;
 end;
 
 procedure TPCUReader.ReadElement(Obj: TJSONObject; El: TPasElement;
@@ -8426,7 +8448,7 @@ procedure TPCUReader.ReadAliasType(Obj: TJSONObject; El: TPasAliasType;
   aContext: TPCUReaderContext);
 begin
   ReadPasElement(Obj,El,aContext);
-  ReadElType(Obj,'Dest',El,@Set_AliasType_DestType,aContext);
+  ReadElType(Obj,'Dest',El,{$IFDEF FPC}@{$ENDIF}Set_AliasType_DestType,aContext);
   El.Expr:=ReadExpr(Obj,El,'Expr',aContext);
 end;
 
@@ -8434,7 +8456,7 @@ procedure TPCUReader.ReadPointerType(Obj: TJSONObject; El: TPasPointerType;
   aContext: TPCUReaderContext);
 begin
   ReadPasElement(Obj,El,aContext);
-  ReadElType(Obj,'Dest',El,@Set_PointerType_DestType,aContext);
+  ReadElType(Obj,'Dest',El,{$IFDEF FPC}@{$ENDIF}Set_PointerType_DestType,aContext);
 end;
 
 procedure TPCUReader.ReadSpecializeType(Obj: TJSONObject;
@@ -8478,7 +8500,7 @@ begin
   // add to free list
   Resolver.AddResolveData(El,Data,lkModule);
 
-  PromiseSetElReference(SpecId,@Set_SpecializeTypeData,Data,El);
+  PromiseSetElReference(SpecId,{$IFDEF FPC}@{$ENDIF}Set_SpecializeTypeData,Data,El);
 
   // check old specialized name
   if not ReadString(Obj,'SpecTypeName',SpecName,El) then
@@ -8554,7 +8576,7 @@ begin
     El.CustomData:=Scope;
     ReadArrayScope(Obj,Scope,aContext);
     end;
-  ReadElType(Obj,'ElType',El,@Set_ArrayType_ElType,aContext);
+  ReadElType(Obj,'ElType',El,{$IFDEF FPC}@{$ENDIF}Set_ArrayType_ElType,aContext);
 
   ReadSpecializations(Obj,El);
 end;
@@ -8563,7 +8585,7 @@ procedure TPCUReader.ReadFileType(Obj: TJSONObject; El: TPasFileType;
   aContext: TPCUReaderContext);
 begin
   ReadPasElement(Obj,El,aContext);
-  ReadElType(Obj,'ElType',El,@Set_FileType_ElType,aContext);
+  ReadElType(Obj,'ElType',El,{$IFDEF FPC}@{$ENDIF}Set_FileType_ElType,aContext);
 end;
 
 procedure TPCUReader.ReadEnumValue(Obj: TJSONObject; El: TPasEnumValue;
@@ -8576,7 +8598,7 @@ end;
 procedure TPCUReader.ReadEnumTypeScope(Obj: TJSONObject;
   Scope: TPasEnumTypeScope; aContext: TPCUReaderContext);
 begin
-  ReadElType(Obj,'CanonicalSet',Scope.Element,@Set_EnumTypeScope_CanonicalSet,aContext);
+  ReadElType(Obj,'CanonicalSet',Scope.Element,{$IFDEF FPC}@{$ENDIF}Set_EnumTypeScope_CanonicalSet,aContext);
   ReadIdentifierScope(Obj,Scope,aContext);
 end;
 
@@ -8604,7 +8626,7 @@ procedure TPCUReader.ReadSetType(Obj: TJSONObject; El: TPasSetType;
   aContext: TPCUReaderContext);
 begin
   ReadPasElement(Obj,El,aContext);
-  ReadElType(Obj,'EnumType',El,@Set_SetType_EnumType,aContext);
+  ReadElType(Obj,'EnumType',El,{$IFDEF FPC}@{$ENDIF}Set_SetType_EnumType,aContext);
   ReadBoolean(Obj,'Packed',El.IsPacked,El);
 end;
 
@@ -8616,7 +8638,7 @@ var
 begin
   Result:=pmNone;
   if not ReadString(Obj,PropName,s,ErrorEl) then exit;
-  for p in TPackMode do
+  for p := Low(TPackMode) to High(TPackMode) do
     if s=PCUPackModeNames[p] then
       exit(p);
   RaiseMsg(20180210210038,ErrorEl,PropName+' "'+s+'"');
@@ -8629,13 +8651,13 @@ begin
   ReadElementList(Obj,El,'Values',El.Values,
     {$IFDEF CheckPasTreeRefCount}'TPasVariant.Values'{$ELSE}true{$ENDIF},
     aContext);
-  ReadElType(Obj,'Members',El,@Set_Variant_Members,aContext);
+  ReadElType(Obj,'Members',El,{$IFDEF FPC}@{$ENDIF}Set_Variant_Members,aContext);
 end;
 
 procedure TPCUReader.ReadRecordScope(Obj: TJSONObject; Scope: TPas2jsRecordScope;
   aContext: TPCUReaderContext);
 begin
-  ReadElementReference(Obj,Scope,'DefaultProperty',@Set_RecordScope_DefaultProperty);
+  ReadElementReference(Obj,Scope,'DefaultProperty',{$IFDEF FPC}@{$ENDIF}Set_RecordScope_DefaultProperty);
   ReadIdentifierScope(Obj,Scope,aContext);
 end;
 
@@ -8668,7 +8690,7 @@ begin
     if Data is TJSONIntegerNumber then
       begin
       Id:=Data.AsInteger;
-      PromiseSetElReference(Id,@Set_RecordType_VariantEl,El,El);
+      PromiseSetElReference(Id,{$IFDEF FPC}@{$ENDIF}Set_RecordType_VariantEl,El,El);
       end
     else if Data is TJSONObject then
       begin
@@ -8699,7 +8721,7 @@ var
 begin
   if ReadString(Obj,PropName,s,ErrorEl) then
     begin
-    for cit in TPasClassInterfaceType do
+    for cit := Low(TPasClassInterfaceType) to High(TPasClassInterfaceType) do
       if s=PCUClassInterfaceTypeNames[cit] then
         exit(cit);
     RaiseMsg(20180329105126,ErrorEl,PropName+'='+s);
@@ -8731,7 +8753,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPasClassScopeFlag do
+    for f := Low(TPasClassScopeFlag) to High(TPasClassScopeFlag) do
       if s=PCUClassScopeFlagNames[f] then
         begin
         if Enable[i] then
@@ -8946,9 +8968,9 @@ begin
       AddElReference(CanonicalClassOfId,CanonicalClassOf,CanonicalClassOf);
     end;
 
-  ReadElementReference(Obj,Scope,'NewInstanceFunction',@Set_ClassScope_NewInstanceFunction);
-  ReadElementReference(Obj,Scope,'DirectAncestor',@Set_ClassScope_DirectAncestor);
-  ReadElementReference(Obj,Scope,'DefaultProperty',@Set_ClassScope_DefaultProperty);
+  ReadElementReference(Obj,Scope,'NewInstanceFunction',{$IFDEF FPC}@{$ENDIF}Set_ClassScope_NewInstanceFunction);
+  ReadElementReference(Obj,Scope,'DirectAncestor',{$IFDEF FPC}@{$ENDIF}Set_ClassScope_DirectAncestor);
+  ReadElementReference(Obj,Scope,'DefaultProperty',{$IFDEF FPC}@{$ENDIF}Set_ClassScope_DefaultProperty);
   Scope.Flags:=ReadClassScopeFlags(Obj,Scope.Element,'SFlags',GetDefaultClassScopeFlags(Scope));
   if not ReadString(Obj,'SGUID',Scope.GUID,aClass) then
     Scope.GUID:='';
@@ -8997,8 +9019,8 @@ begin
 
   El.InterfaceType:=ReadClassInterfaceType(Obj,'IntfType',El,citCom);
 
-  ReadElType(Obj,'Ancestor',El,@Set_ClassType_AncestorType,aContext);
-  ReadElType(Obj,'HelperFor',El,@Set_ClassType_HelperForType,aContext);
+  ReadElType(Obj,'Ancestor',El,{$IFDEF FPC}@{$ENDIF}Set_ClassType_AncestorType,aContext);
+  ReadElType(Obj,'HelperFor',El,{$IFDEF FPC}@{$ENDIF}Set_ClassType_HelperForType,aContext);
   ReadBoolean(Obj,'External',El.IsExternal,El);
   // not needed IsShortDefinition: Boolean; -> class(anchestor); without end
   El.GUIDExpr:=ReadExpr(Obj,El,'GUID',aContext);
@@ -9072,7 +9094,7 @@ begin
   if ReadString(Obj,'Access',s,El) then
     begin
     Found:=false;
-    for Arg in TArgumentAccess do
+    for Arg := Low(TArgumentAccess) to High(TArgumentAccess) do
       if s=PCUArgumentAccessNames[Arg] then
         begin
         El.Access:=Arg;
@@ -9082,7 +9104,7 @@ begin
     if not Found then
       RaiseMsg(20180210205544,El,'Access "'+s+'"');
     end;
-  ReadElType(Obj,'ArgType',El,@Set_Argument_ArgType,aContext);
+  ReadElType(Obj,'ArgType',El,{$IFDEF FPC}@{$ENDIF}Set_Argument_ArgType,aContext);
   El.ValueExpr:=ReadExpr(Obj,El,'Value',aContext);
 end;
 
@@ -9109,7 +9131,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TProcTypeModifier do
+    for f := Low(TProcTypeModifier) to High(TProcTypeModifier) do
       if s=PCUProcTypeModifierNames[f] then
         begin
         if Enable[i] then
@@ -9156,7 +9178,7 @@ begin
   if ReadString(Obj,'Call',s,El) then
     begin
     Found:=false;
-    for c in TCallingConvention do
+    for c := Low(TCallingConvention) to High(TCallingConvention) do
       if s=PCUCallingConventionNames[c] then
         begin
         El.CallingConvention:=c;
@@ -9175,7 +9197,7 @@ procedure TPCUReader.ReadResultElement(Obj: TJSONObject; El: TPasResultElement;
   aContext: TPCUReaderContext);
 begin
   ReadPasElement(Obj,El,aContext);
-  ReadElType(Obj,'Result',El,@Set_ResultElement_ResultType,aContext);
+  ReadElType(Obj,'Result',El,{$IFDEF FPC}@{$ENDIF}Set_ResultElement_ResultType,aContext);
 end;
 
 procedure TPCUReader.ReadFunctionType(Obj: TJSONObject; El: TPasFunctionType;
@@ -9215,7 +9237,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TVariableModifier do
+    for f := Low(TVariableModifier) to High(TVariableModifier) do
       if s=PCUVarModifierNames[f] then
         begin
         if Enable[i] then
@@ -9235,7 +9257,7 @@ procedure TPCUReader.ReadVariable(Obj: TJSONObject; El: TPasVariable;
 begin
   ReadPasElement(Obj,El,aContext);
 
-  ReadElType(Obj,'VarType',El,@Set_Variable_VarType,aContext);
+  ReadElType(Obj,'VarType',El,{$IFDEF FPC}@{$ENDIF}Set_Variable_VarType,aContext);
   El.VarModifiers:=ReadVarModifiers(Obj,El,'VarMods',[]);
   El.LibraryName:=ReadExpr(Obj,El,'Library',aContext);
   El.ExportName:=ReadExpr(Obj,El,'Export',aContext);
@@ -9263,7 +9285,7 @@ end;
 procedure TPCUReader.ReadPropertyScope(Obj: TJSONObject;
   Scope: TPasPropertyScope; aContext: TPCUReaderContext);
 begin
-  ReadElementReference(Obj,Scope,'AncestorProp',@Set_PropertyScope_AncestorProp);
+  ReadElementReference(Obj,Scope,'AncestorProp',{$IFDEF FPC}@{$ENDIF}Set_PropertyScope_AncestorProp);
   ReadIdentifierScope(Obj,Scope,aContext);
 end;
 
@@ -9329,11 +9351,10 @@ var
 begin
   ReadPasElement(Obj,El,aContext);
   if ReadString(Obj,'ProcClass',s,El) then
-    case s of
-    'procedure': El.ProcClass:=TPasProcedure;
+    if s = 'procedure' then
+      El.ProcClass:=TPasProcedure
     else
-      RaiseMsg(20180329104616,El,s);
-    end
+      RaiseMsg(20180329104616,El,s)
   else
     El.ProcClass:=TPasFunction;
   El.InterfaceProc:=ReadExpr(Obj,El,'InterfaceProc',aContext);
@@ -9423,7 +9444,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TProcedureModifier do
+    for f := Low(TProcedureModifier) to High(TProcedureModifier) do
       if s=PCUProcedureModifierNames[f] then
         begin
         if Enable[i] then
@@ -9461,7 +9482,7 @@ begin
     begin
     s:=Names[i];
     Found:=false;
-    for f in TPasProcedureScopeFlag do
+    for f := Low(TPasProcedureScopeFlag) to High(TPasProcedureScopeFlag) do
       if s=PCUProcedureScopeFlagNames[f] then
         begin
         if Enable[i] then
@@ -9484,8 +9505,8 @@ begin
   Proc:=Scope.Element as TPasProcedure;
   ReadString(Obj,'ResultVarName',Scope.ResultVarName,Proc);
   // Scope.OverloadName is already set in ReadProcedure
-  ReadElementReference(Obj,Scope,'ImplProc',@Set_ProcedureScope_ImplProc);
-  ReadElementReference(Obj,Scope,'Overridden',@Set_ProcedureScope_Overridden);
+  ReadElementReference(Obj,Scope,'ImplProc',{$IFDEF FPC}@{$ENDIF}Set_ProcedureScope_ImplProc);
+  ReadElementReference(Obj,Scope,'Overridden',{$IFDEF FPC}@{$ENDIF}Set_ProcedureScope_Overridden);
   if Proc.Parent is TPasMembersType then
     Scope.ClassRecScope:=Proc.Parent.CustomData as TPasClassOrRecordScope // no AddRef
   else
@@ -9647,7 +9668,7 @@ begin
       if ReadString(Obj,'MessageType',s,El) then
         begin
         Found:=false;
-        for t in TProcedureMessageType do
+        for t := Low(TProcedureMessageType) to High(TProcedureMessageType) do
           if s=PCUProcedureMessageTypeNames[t] then
             begin
             El.MessageType:=t;
@@ -9687,7 +9708,7 @@ begin
   if ReadString(Obj,'Operator',s,El) then
     begin
     Found:=false;
-    for t in TOperatorType do
+    for t := Low(TOperatorType) to High(TOperatorType) do
       if s=PCUOperatorTypeNames[t] then
         begin
         El.OperatorType:=t;
@@ -9862,13 +9883,14 @@ var
 begin
   ReadPasElement(Obj,El,aContext);
   if ReadString(Obj,'Loop',s,El) then
-    case s of
-    'Normal': ;
-    'Down': El.LoopType:=ltDown;
-    'In': El.LoopType:=ltIn;
+    if s = 'Normal' then
+    else if s = 'Down' then
+      El.LoopType:=ltDown
+    else if s = 'In' then
+      El.LoopType:=ltIn
     else
       RaiseMsg(20200105195924,El,s);
-    end;
+
   El.VariableName:=ReadExpr(Obj,El,'Var',aContext);
   El.StartExpr:=ReadExpr(Obj,El,'Start',aContext);
   El.EndExpr:=ReadExpr(Obj,El,'End',aContext);
@@ -9884,15 +9906,17 @@ var
 begin
   ReadPasElement(Obj,El,aContext);
   if ReadString(Obj,'Kind',s,El) then
-    case s of
-    'Default': ;
-    'Add': El.Kind:=akAdd;
-    'Minus': El.Kind:=akMinus;
-    'Mul': El.Kind:=akMul;
-    'Division': El.Kind:=akDivision;
+    if s = 'Default' then
+    else if s = 'Add' then
+      El.Kind:=akAdd
+    else if s = 'Minus' then
+      El.Kind:=akMinus
+    else if s = 'Mul' then
+      El.Kind:=akMul
+    else if s = 'Division' then
+      El.Kind:=akDivision
     else
       RaiseMsg(20200105200423,El,s);
-    end;
   El.Left:=ReadExpr(Obj,El,'Left',aContext);
   El.Right:=ReadExpr(Obj,El,'Right',aContext);
 end;
@@ -9936,7 +9960,7 @@ begin
     El.TypeEl:=El.VarEl.VarType;
     end
   else
-    ReadElType(Obj,'VarType',El,@Set_ExceptOn_TypeEl,aContext);
+    ReadElType(Obj,'VarType',El,{$IFDEF FPC}@{$ENDIF}Set_ExceptOn_TypeEl,aContext);
   Body:=TPasImplElement(ReadElementProperty(Obj,El,'Body',TPasImplElement,aContext));
   if Body<>nil then
     El.AddElement(Body);
@@ -10074,24 +10098,33 @@ begin
     writeln('TPCUReader.ReadJSONHeader ',aName);
     {$ENDIF}
     Data:=Obj.Elements[aName];
-    case aName of
-    'FileType': ; // done in ReadHeaderMagic
-    'Version': ; // done in ReadHeaderVersion
-    'GUID': ; // done in ReadGUID
-    'TargetPlatform': ReadTargetPlatform(Data);
-    'TargetProcessor': ReadTargetProcessor(Data);
-    'Sources': ReadSrcFiles(Data);
-    'InitParserOpts': InitialFlags.ParserOptions:=ReadParserOptions(Obj,nil,aName,PCUDefaultParserOptions);
-    'InitModeSwitches': InitialFlags.ModeSwitches:=ReadModeSwitches(Obj,nil,aName,PCUDefaultModeSwitches);
-    'InitBoolSwitches': InitialFlags.BoolSwitches:=ReadBoolSwitches(Obj,nil,aName,PCUDefaultBoolSwitches);
-    'InitConverterOpts': InitialFlags.ConverterOptions:=ReadConverterOptions(Obj,nil,aName,PCUDefaultConverterOptions);
-    'FinalParserOpts': Parser.Options:=ReadParserOptions(Obj,nil,aName,InitialFlags.ParserOptions);
-    'FinalModeSwitches': Scanner.CurrentModeSwitches:=ReadModeSwitches(Obj,nil,aName,InitialFlags.ModeSwitches);
-    'FinalBoolSwitches': Scanner.CurrentBoolSwitches:=ReadBoolSwitches(Obj,nil,aName,InitialFlags.BoolSwitches);
-    'Module': ReadModuleHeader(Data);
+    if aName = 'FileType' then // done in ReadHeaderMagic
+    else if aName = 'Version' then // done in ReadHeaderVersion
+    else if aName = 'GUID' then // done in ReadGUID
+    else if aName = 'TargetPlatform' then
+      ReadTargetPlatform(Data)
+    else if aName = 'TargetProcessor' then
+      ReadTargetProcessor(Data)
+    else if aName = 'Sources' then
+      ReadSrcFiles(Data)
+    else if aName = 'InitParserOpts' then
+      InitialFlags.ParserOptions:=ReadParserOptions(Obj,nil,aName,PCUDefaultParserOptions)
+    else if aName = 'InitModeSwitches' then
+      InitialFlags.ModeSwitches:=ReadModeSwitches(Obj,nil,aName,PCUDefaultModeSwitches)
+    else if aName = 'InitBoolSwitches' then
+      InitialFlags.BoolSwitches:=ReadBoolSwitches(Obj,nil,aName,PCUDefaultBoolSwitches)
+    else if aName = 'InitConverterOpts' then
+      InitialFlags.ConverterOptions:=ReadConverterOptions(Obj,nil,aName,PCUDefaultConverterOptions)
+    else if aName = 'FinalParserOpts' then
+      Parser.Options:=ReadParserOptions(Obj,nil,aName,InitialFlags.ParserOptions)
+    else if aName = 'FinalModeSwitches' then
+      Scanner.CurrentModeSwitches:=ReadModeSwitches(Obj,nil,aName,InitialFlags.ModeSwitches)
+    else if aName = 'FinalBoolSwitches' then
+      Scanner.CurrentBoolSwitches:=ReadBoolSwitches(Obj,nil,aName,InitialFlags.BoolSwitches)
+    else if aName = 'Module' then
+      ReadModuleHeader(Data)
     else
       ReadHeaderItem(aName,Data);
-    end;
     end;
   {$IFDEF VerbosePCUFiler}
   writeln('TPCUReader.ReadJSONHeader END');

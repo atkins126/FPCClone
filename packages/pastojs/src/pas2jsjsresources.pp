@@ -1,6 +1,8 @@
 unit pas2jsjsresources;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
@@ -48,8 +50,12 @@ begin
   Result:='';
   For I:=0 to FResources.Count-1 do
     begin
+{$IFDEF DCC}
+    Result := Result + FResources.ValueFromIndex[I]+#10;
+{$ELSE}
     FResources.GetNameValue(I,N,V);
     Result:=Result+V+#10;
+{$ENDIF}
     end;
 end;
 

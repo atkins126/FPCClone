@@ -21,14 +21,16 @@
 }
 unit Pas2JSFS;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 {$I pas2js_defines.inc}
 
 interface
 
 uses
   // No filesystem-dependent units here !
-  Classes, SysUtils, PScanner, fpjson;
+  Classes, SysUtils, PScanner, fpjson{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 const // Messages
   nUsingPath = 104; sUsingPath = 'Using %s: "%s"';

@@ -18,7 +18,9 @@
 }
 unit Pas2JSFSCompiler;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
@@ -86,7 +88,7 @@ var
   aFile: TPas2JSCompilerFile absolute Item;
   aFilename: String;
 begin
-  aFilename:=AnsiString(Filename);
+  aFilename:=String(Filename);
   Result:=CompareFilenames(aFilename,aFile.UnitFilename);
 end;
 
@@ -103,7 +105,7 @@ var
   aFile: TPas2JSCompilerFile absolute Item;
   anUnitname: String;
 begin
-  anUnitname:=AnsiString(TheUnitname);
+  anUnitname:=String(TheUnitname);
   Result:=CompareText(anUnitname,aFile.PasUnitName);
 end;
 {$ENDIF}
@@ -136,7 +138,7 @@ end;
 function TPas2jsFSCompiler.CreateJSMapper: TPas2JSMapper;
 begin
   Result:=inherited CreateJSMapper;
-  Result.OnIsBinary:=@OnJSMapperIsBinary;
+  Result.OnIsBinary:={$IFDEF FPC}@{$ENDIF}OnJSMapperIsBinary;
 end;
 
 function TPas2jsFSCompiler.OnJSMapperIsBinary(Sender: TObject;
@@ -162,14 +164,14 @@ begin
           {$IFDEF Pas2js}
           @Pas2jsCompilerFile_FilenameToKeyName,@PtrFilenameToKeyName
           {$ELSE}
-          @CompareCompilerFiles_UnitFilename,@CompareFileAndCompilerFile_UnitFilename
+          {$IFDEF FPC}@{$ENDIF}CompareCompilerFiles_UnitFilename,{$IFDEF FPC}@{$ENDIF}CompareFileAndCompilerFile_UnitFilename
           {$ENDIF});
     kcUnitName:
       Result:=TPasAnalyzerKeySet.Create(
         {$IFDEF Pas2js}
         @Pas2jsCompilerFile_UnitnameToKeyName,@PtrUnitnameToKeyName
         {$ELSE}
-        @CompareCompilerFilesPasUnitname,@CompareUnitnameAndCompilerFile_PasUnitName
+        {$IFDEF FPC}@{$ENDIF}CompareCompilerFilesPasUnitname,{$IFDEF FPC}@{$ENDIF}CompareUnitnameAndCompilerFile_PasUnitName
         {$ENDIF});
   else
     Raise EPas2jsFileCache.CreateFmt('Internal Unknown key type: %d',[Ord(KeyType)]);
@@ -179,10 +181,9 @@ end;
 procedure TPas2jsFSCompiler.InitParamMacros;
 begin
   inherited InitParamMacros;
-  ParamMacros.AddFunction('Env','environment variable, e.g. $Env(HOME)',@OnMacroEnv,true);
+
+  ParamMacros.AddFunction('Env','environment variable, e.g. $Env(HOME)',{$IFDEF FPC}@{$ENDIF}OnMacroEnv,true);
 end;
-
-
 
 end.
 

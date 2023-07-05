@@ -12,14 +12,16 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
  **********************************************************************}
+{$IFDEF FPC}
 {$mode objfpc}
 {$h+}
+{$ENDIF}
 unit jsonparser;
 
 interface
 
 uses
-  Classes, SysUtils, fpJSON, jsonscanner, jsonreader;
+  Classes, SysUtils, fpJSON, jsonscanner, jsonreader{$IFDEF DCC}, Delphi.Helper{$ENDIF};
   
 Type
 
@@ -252,19 +254,19 @@ end;
 Procedure InitJSONHandler;
 
 begin
-  if GetJSONParserHandler=Nil then
+  if {$IFDEF DCC}@{$ENDIF}GetJSONParserHandler = nil then
     SetJSONParserHandler(@DefJSONParserHandler);
-  if GetJSONStringParserHandler=Nil then
+  if {$IFDEF DCC}@{$ENDIF}GetJSONStringParserHandler = nil then
     SetJSONStringParserHandler(@DefJSONStringParserHandler);
 end;
 
 Procedure DoneJSONHandler;
 
 begin
-  if GetJSONParserHandler=@DefJSONParserHandler then
-    SetJSONParserHandler(Nil);
-  if GetJSONStringParserHandler=@DefJSONStringParserHandler then
-    SetJSONStringParserHandler(Nil);
+  if {$IFDEF DCC}@{$ENDIF}GetJSONParserHandler = @DefJSONParserHandler then
+    SetJSONParserHandler(nil);
+  if {$IFDEF DCC}@{$ENDIF}GetJSONStringParserHandler = @DefJSONStringParserHandler then
+    SetJSONStringParserHandler(nil);
 end;
 
 initialization

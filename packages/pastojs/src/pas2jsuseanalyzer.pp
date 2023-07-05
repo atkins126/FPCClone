@@ -23,7 +23,9 @@ Works:
 }
 unit Pas2jsUseAnalyzer;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 {$inline on}
 
 interface
@@ -31,7 +33,7 @@ interface
 uses
   Classes,
   PasUseAnalyzer, PasTree, PasResolver,
-  FPPas2Js;
+  FPPas2Js{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 type
 

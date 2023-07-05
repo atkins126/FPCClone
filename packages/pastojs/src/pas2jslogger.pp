@@ -20,8 +20,10 @@
 }
 unit Pas2jsLogger;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
 {$WARN 6018 off : Unreachable code}
+{$ENDIF}
 {$i pas2js_defines.inc}
 
 interface
@@ -39,7 +41,7 @@ uses
   {$ENDIF}
   Types, Classes, SysUtils,
   PasTree, PScanner,
-  jstree, jsbase, jswriter, fpjson;
+  jstree, jsbase, jswriter, fpjson{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 const
   ExitCodeErrorInternal = 1; // internal error
@@ -343,10 +345,10 @@ begin
     begin
       Result:=DbgString(TJSBinaryExpression(Element).A,Indent+2);
       if TJSBinaryExpression(Element).AllowCompact then
-        Result+=TJSBinaryExpression(Element).OperatorString
+        Result := Result + TJSBinaryExpression(Element).OperatorString
       else
-        Result+=' '+TJSBinaryExpression(Element).OperatorString+' ';
-      Result+=DbgString(TJSBinaryExpression(Element).B,Indent+2);
+        Result := Result + ' '+TJSBinaryExpression(Element).OperatorString+' ';
+      Result := Result + DbgString(TJSBinaryExpression(Element).B,Indent+2);
     end else begin
       Result:='{: unknown binary Element: '+Element.Classname+':}';
     end;
@@ -370,7 +372,7 @@ begin
   begin
     Result:=String(TJSVarDeclaration(Element).Name);
     if TJSVarDeclaration(Element).Init<>nil then
-      Result+='='+DbgString(TJSVarDeclaration(Element).Init,Indent+2);
+      Result := Result + '='+DbgString(TJSVarDeclaration(Element).Init,Indent+2);
 
   // if(){} else {}
   end else if Element is TJSIfStatement then
@@ -379,7 +381,7 @@ begin
        +StringOfChar(' ',Indent+2)+DbgString(TJSIfStatement(Element).BTrue,Indent+2)+LineEnding
        +StringOfChar(' ',Indent);
     if TJSIfStatement(Element).BFalse<>nil then
-      Result+=' else {'+LineEnding
+      Result := Result + ' else {'+LineEnding
          +StringOfChar(' ',Indent+2)+DbgString(TJSIfStatement(Element).BFalse,Indent+2)+LineEnding
          +StringOfChar(' ',Indent)+'}';
 
@@ -392,46 +394,46 @@ begin
     begin
       Result:='while('+DbgString(TJSWhileStatement(Element).Cond,Indent+2)+')';
       if TJSWhileStatement(Element).Body<>nil then
-        Result+=DbgString(TJSWhileStatement(Element).Body,Indent)
+        Result := Result + DbgString(TJSWhileStatement(Element).Body,Indent)
       else
-        Result+='{}';
+        Result := Result + '{}';
 
     // do{}while()
     end else if Element is TJSDoWhileStatement then
     begin
       Result:='do';
       if TJSDoWhileStatement(Element).Body<>nil then
-        Result+=DbgString(TJSDoWhileStatement(Element).Body,Indent)
+        Result := Result + DbgString(TJSDoWhileStatement(Element).Body,Indent)
       else
-        Result+='{}';
-      Result+='('+DbgString(TJSDoWhileStatement(Element).Cond,Indent+2)+')';
+        Result := Result + '{}';
+      Result := Result + '('+DbgString(TJSDoWhileStatement(Element).Cond,Indent+2)+')';
 
     // for(Init;Incr;Cond)Body
     end else if Element is TJSForStatement then
     begin
       Result:='for(';
       if TJSForStatement(Element).Init<>nil then
-        Result+=DbgString(TJSForStatement(Element).Init,Indent+2);
-      Result+=';';
+        Result := Result + DbgString(TJSForStatement(Element).Init,Indent+2);
+      Result := Result + ';';
       if TJSForStatement(Element).Cond<>nil then
-        Result+=DbgString(TJSForStatement(Element).Cond,Indent+2);
-      Result+=';';
+        Result := Result + DbgString(TJSForStatement(Element).Cond,Indent+2);
+      Result := Result + ';';
       if TJSForStatement(Element).Incr<>nil then
-        Result+=DbgString(TJSForStatement(Element).Incr,Indent+2);
-      Result+=')';
+        Result := Result + DbgString(TJSForStatement(Element).Incr,Indent+2);
+      Result := Result + ')';
       if TJSForStatement(Element).Body<>nil then
-        Result+=DbgString(TJSForStatement(Element).Body,Indent)
+        Result := Result + DbgString(TJSForStatement(Element).Body,Indent)
       else
-        Result+='{}';
+        Result := Result + '{}';
 
     // {}
     end else begin
       if TJSBodyStatement(Element).Body<>nil then
-        Result+='{'+LineEnding
+        Result := Result + '{'+LineEnding
           +StringOfChar(' ',Indent+2)+DbgString(TJSBodyStatement(Element).Body,Indent+2)+LineEnding
           +StringOfChar(' ',Indent)+'}'
       else
-        Result+='{}';
+        Result := Result + '{}';
     end;
 
   end else begin
@@ -465,8 +467,8 @@ var
 begin
   Result:='';
   for i:=0 to TJSArrayLiteralElements(Element).Count-1 do begin
-    if i>0 then Result+=',';
-    Result+=DbgString(TJSArrayLiteralElements(Element).Elements[i].Expr,Indent+2);
+    if i>0 then Result := Result + ',';
+    Result := Result + DbgString(TJSArrayLiteralElements(Element).Elements[i].Expr,Indent+2);
   end;
 end;
 
@@ -476,8 +478,8 @@ var
 begin
   Result:='';
   for i:=0 to TJSObjectLiteralElements(Element).Count-1 do begin
-    if i>0 then Result+=',';
-    Result+=DbgString(TJSObjectLiteralElements(Element).Elements[i].Expr,Indent+2);
+    if i>0 then Result := Result + ',';
+    Result := Result + DbgString(TJSObjectLiteralElements(Element).Elements[i].Expr,Indent+2);
   end;
 end;
 
@@ -507,8 +509,8 @@ begin
   for i:=1 to length(s) do begin
     c:=s[i];
     case c of
-    #0..#31,#127..#255: Result+='$'+HexStr(ord(c),2);
-    else Result+=c;
+    #0..#31,#127..#255: Result := Result + '$'+HexStr(ord(c),2);
+    else Result := Result + c;
     end;
   end;
 end;
@@ -620,7 +622,7 @@ end;
 
 procedure TPas2jsLogger.SetMsgNumberDisabled(MsgNumber: integer; AValue: boolean
   );
-  {$IF defined(FPC) and (FPC_FULLVERSION<30101)}
+  {$IF defined(FPC) and Defined(FPC_FULLVERSION) and (FPC_FULLVERSION<30101)}
   procedure Delete(var A: TIntegerDynArray; Index, Count: integer); overload;
   var
     i: Integer;
@@ -703,7 +705,7 @@ begin
   //writeln('TPas2jsLogger.LogPlain "',Encoding,'" "',DbgStr(S),'"');
   if DebugLog<>nil then
     DebugLogWriteLn(S);
-  if FOnLog<>Nil then
+  if Assigned(FOnLog) then
     FOnLog(Self,S)
   else if FOutputFile<>nil then
     FOutputFile.Write(S+LineEnding)
@@ -899,27 +901,29 @@ begin
     end;
     {$ELSE}
     case V.VType of
-      vtInteger:      s += IntToStr(V.VInteger);
-      vtBoolean:      s += BoolToStr(V.VBoolean);
-      vtChar:         s += V.VChar;
+      vtInteger:      s := s + IntToStr(V.VInteger);
+      vtBoolean:      s := s + BoolToStr(V.VBoolean);
+      vtChar:         s := s + V.VChar;
       {$ifndef FPUNONE}
       vtExtended:     ; //  V.VExtended^;
       {$ENDIF}
-      vtString:       s += V.VString^;
+      vtString:       s := s + V.VString^;
       vtPointer:      ; //  V.VPointer;
-      vtPChar:        s += V.VPChar;
+      vtPChar:        s := s + V.VPChar;
       vtObject:       ; //  V.VObject;
       vtClass:        ; //  V.VClass;
-      vtWideChar:     s += AnsiString(V.VWideChar);
-      vtPWideChar:    s += AnsiString(V.VPWideChar);
-      vtAnsiString:   s += AnsiString(V.VAnsiString);
+      vtWideChar:     s := s + AnsiString(V.VWideChar);
+      vtPWideChar:    s := s + AnsiString(V.VPWideChar);
+      vtAnsiString:   s := s + AnsiString(V.VAnsiString);
       vtCurrency:     ; //  V.VCurrency^);
       vtVariant:      ; //  V.VVariant^);
       vtInterface:    ; //  V.VInterface^);
-      vtWidestring:   s += AnsiString(WideString(V.VWideString));
-      vtInt64:        s += IntToStr(V.VInt64^);
-      vtQWord:        s += IntToStr(V.VQWord^);
-      vtUnicodeString:s += AnsiString(UnicodeString(V.VUnicodeString));
+      vtWidestring:   s := s + AnsiString(WideString(V.VWideString));
+      vtInt64:        s := s + IntToStr(V.VInt64^);
+      {$IFDEF FPC}
+      vtQWord:        s := s + IntToStr(V.VQWord^);
+      {$ENDIF}
+      vtUnicodeString:s := s + AnsiString(UnicodeString(V.VUnicodeString));
     end;
     {$ENDIF}
   end;
@@ -993,12 +997,15 @@ begin
   {$ENDIF}
 end;
 {$ELSE}
+{$IFDEF FPC}
 var
   lErrorAddr: CodePointer;
   FrameCount: LongInt;
   Frames: PCodePointer;
   FrameNumber: Integer;
+{$ENDIF}
 begin
+{$IFDEF FPC}
   lErrorAddr:=ExceptAddr;
   FrameCount:=ExceptFrameCount;
   Frames:=ExceptFrames;
@@ -1006,6 +1013,7 @@ begin
   for FrameNumber := 0 to FrameCount-1 do
     Log(mtDebug,BackTraceStrFunc(Frames[FrameNumber]));
   if E=nil then ;
+{$ENDIF}
 end;
 {$ENDIF}
 
@@ -1034,21 +1042,21 @@ begin
   if Filename<>'' then
   begin
     if Assigned(OnFormatPath) then
-      s+=OnFormatPath(Filename)
+      s := s + OnFormatPath(Filename)
     else
-      s+=Filename;
+      s := s + Filename;
     if Line>0 then
     begin
-      s+='('+IntToStr(Line);
-      if Col>0 then s+=','+IntToStr(Col);
-      s+=')';
+      s := s + '('+IntToStr(Line);
+      if Col>0 then s := s + ','+IntToStr(Col);
+      s := s + ')';
     end;
-    if s<>'' then s+=' ';
+    if s<>'' then s := s + ' ';
   end;
-  s+=MsgTypeToStr(MsgType)+': ';
+  s := s + MsgTypeToStr(MsgType)+': ';
   if ShowMsgNumbers and (MsgNumber<>0) then
-    s+='('+IntToStr(MsgNumber)+') ';
-  s+=Msg;
+    s := s + '('+IntToStr(MsgNumber)+') ';
+  s := s + Msg;
   Result:=s;
 end;
 

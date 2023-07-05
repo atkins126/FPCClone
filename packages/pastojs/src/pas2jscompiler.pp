@@ -1,4 +1,4 @@
-{ Author: Mattias Gaertner  2021  mattias@freepascal.org
+﻿{ Author: Mattias Gaertner  2021  mattias@freepascal.org
 
 Abstract:
   TPas2jsCompiler is the wheel boss of the pas2js compiler.
@@ -18,7 +18,9 @@ Compiler-ToDos:
 }
 unit Pas2jsCompiler;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$I pas2js_defines.inc}
 
@@ -40,7 +42,7 @@ uses
   PScanner, PParser, PasTree, PasResolver, PasResolveEval, PasUseAnalyzer,
   Pas2JSUtils,
   pas2jsresstrfile, pas2jsresources, pas2jshtmlresources, pas2jsjsresources,
-  FPPas2Js, FPPJsSrcMap, Pas2jsLogger, Pas2jsFS, Pas2jsPParser, Pas2jsUseAnalyzer;
+  FPPas2Js, FPPJsSrcMap, Pas2jsLogger, Pas2jsFS, Pas2jsPParser, Pas2jsUseAnalyzer{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 const
   VersionMajor = 2;
@@ -677,8 +679,8 @@ type
     procedure WriteInfo;
     function GetShownMsgTypes: TMessageTypes;
 
-    procedure AddDefine(const aName: String);
-    procedure AddDefine(const aName, Value: String);
+    procedure AddDefine(const aName: String); overload;
+    procedure AddDefine(const aName, Value: String); overload;
     procedure RemoveDefine(const aName: String);
     function IsDefined(const aName: String): boolean;
     procedure SetOption(Flag: TP2jsCompilerOption; Enable: boolean);
@@ -756,22 +758,22 @@ implementation
 
 function GetCompiledDate: string;
 begin
-  Result:={$I %Date%};
+  Result:={$IFDEF FPC}{$I %Date%}{$ELSE}EmptyStr{$ENDIF};
 end;
 
 function GetCompiledVersion: string;
 begin
-  Result:={$I %FPCVERSION%};
+  Result:={$IFDEF FPC}{$I %FPCVERSION%}{$ELSE}EmptyStr{$ENDIF};
 end;
 
 function GetCompiledTargetOS: string;
 begin
-  Result:=lowerCase({$I %FPCTARGETOS%});
+  Result:={$IFDEF FPC}lowerCase({$I %FPCTARGETOS%}){$ELSE}EmptyStr{$ENDIF};
 end;
 
 function GetCompiledTargetCPU: string;
 begin
-  Result:=lowerCase({$I %FPCTARGETCPU%});
+  Result:={$IFDEF FPC}lowerCase({$I %FPCTARGETCPU%}){$ELSE}EmptyStr{$ENDIF};
 end;
 
 { TPas2JSCompilerSupport }
@@ -787,8 +789,8 @@ constructor TPas2JSConfigSupport.Create(aCompiler: TPas2jsCompiler);
 begin
   Inherited Create(aCompiler);
   FConditionEval:=TCondDirectiveEvaluator.Create;
-  FConditionEval.OnLog:=@ConditionEvalLog;
-  FConditionEval.OnEvalVariable:=@ConditionEvalVariable;
+  FConditionEval.OnLog:={$IFDEF FPC}@{$ENDIF}ConditionEvalLog;
+  FConditionEval.OnEvalVariable:={$IFDEF FPC}@{$ENDIF}ConditionEvalVariable;
 end;
 
 destructor TPas2JSConfigSupport.Destroy;
@@ -982,18 +984,18 @@ begin
 
   FPasResolver:=TPas2jsCompilerResolver.Create;
   FPasResolver.Owner:=Self;
-  FPasResolver.OnFindModule:=@OnResolverFindModule;
-  FPasResolver.OnCheckSrcName:=@OnResolverCheckSrcName;
-  FPasResolver.OnLog:=@OnPasResolverLog;
+  FPasResolver.OnFindModule:={$IFDEF FPC}@{$ENDIF}OnResolverFindModule;
+  FPasResolver.OnCheckSrcName:={$IFDEF FPC}@{$ENDIF}OnResolverCheckSrcName;
+  FPasResolver.OnLog:={$IFDEF FPC}@{$ENDIF}OnPasResolverLog;
   FPasResolver.Log:=Log;
   FPasResolver.Hub:=aCompiler.ResolverHub;
   FPasResolver.AddObjFPCBuiltInIdentifiers(btAllJSBaseTypes,bfAllJSBaseProcs);
   FIsMainFile:=Compiler.FS.SameFileName(Compiler.MainSrcFile,PasFilename);
-  for ub in TUsedBySection do
+  for ub := Low(TUsedBySection) to High(TUsedBySection) do
     FUsedBy[ub]:=TFPList.Create;
 
   FUseAnalyzer:=TPas2JSAnalyzer.Create;
-  FUseAnalyzer.OnMessage:=@OnUseAnalyzerMessage;
+  FUseAnalyzer.OnMessage:={$IFDEF FPC}@{$ENDIF}OnUseAnalyzerMessage;
   FUseAnalyzer.Resolver:=FPasResolver;
 
   FPCUSupport:=CreatePCUSupport;
@@ -1005,7 +1007,7 @@ var
 begin
   FreeAndNil(FPCUSupport);
   FreeAndNil(FUseAnalyzer);
-  for ub in TUsedBySection do
+  for ub := Low(TUsedBySection) to High(TUsedBySection) do
     FreeAndNil(FUsedBy[ub]);
   FreeAndNil(FJSModule);
   FreeAndNil(FConverter);
@@ -1095,9 +1097,9 @@ begin
     RaiseInternalError(20180707193258,UnitFilename);
   FScanner := TPas2jsPasScanner.Create(FileResolver);
   Scanner.LogEvents:=PascalResolver.ScannerLogEvents;
-  Scanner.OnLog:=@OnScannerLog;
-  Scanner.OnFormatPath:=@Compiler.FormatPath;
-  Scanner.RegisterResourceHandler('*',@HandleResources);
+  Scanner.OnLog:={$IFDEF FPC}@{$ENDIF}OnScannerLog;
+  Scanner.OnFormatPath:={$IFDEF FPC}@{$ENDIF}Compiler.FormatPath;
+  Scanner.RegisterResourceHandler('*',{$IFDEF FPC}@{$ENDIF}HandleResources);
 
   // create parser (Note: this sets some scanner options to defaults)
   FParser := TPas2jsPasParser.Create(Scanner, FileResolver, PascalResolver);
@@ -1133,7 +1135,7 @@ begin
 
   // parser
   Parser.LogEvents:=PascalResolver.ParserLogEvents;
-  Parser.OnLog:=@OnParserLog;
+  Parser.OnLog:={$IFDEF FPC}@{$ENDIF}OnParserLog;
   Parser.Log:=Log;
   PascalResolver.P2JParser:=Parser;
 
@@ -1557,8 +1559,8 @@ begin
   try
     // convert
     CreateConverter;
-    Converter.OnIsElementUsed:=@OnConverterIsElementUsed;
-    Converter.OnIsTypeInfoUsed:=@OnConverterIsTypeInfoUsed;
+    Converter.OnIsElementUsed:={$IFDEF FPC}@{$ENDIF}OnConverterIsElementUsed;
+    Converter.OnIsTypeInfoUsed:={$IFDEF FPC}@{$ENDIF}OnConverterIsTypeInfoUsed;
     FJSModule:=Converter.ConvertPasElement(PasModule,PascalResolver);
     if FResourceHandler.Outputmode=romJS then
       FJSModule:=FResourceHandler.WriteJS(PasUnitName,FJSModule);
@@ -1814,114 +1816,114 @@ begin
         inc(p);
         if (p>l) or (Line[p] in [#0,#9,' ','-']) then continue; // comment
         Directive:=lowercase(GetWord);
-        case Directive of
-        'ifdef','ifndef':
+        if StringInList(Directive, ['ifdef','ifndef']) then
+        begin
+          inc(IfLvl);
+          if Skip=skipNone then
           begin
-            inc(IfLvl);
-            if Skip=skipNone then
+            aName:=GetWord;
+            if Compiler.IsDefined(aName)=(Directive='ifdef') then
             begin
-              aName:=GetWord;
-              if Compiler.IsDefined(aName)=(Directive='ifdef') then
-              begin
-                // execute block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('true -> execute');
-              end else begin
-                // skip block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('false -> skip');
-                SkipLvl:=IfLvl;
-                Skip:=skipIf;
-              end;
-            end;
-          end;
-        'if':
-          begin
-            inc(IfLvl);
-            if Skip=skipNone then
-            begin
-              Expr:=copy(Line,p,length(Line));
-              if ConditionEvaluator.Eval(Expr) then
-              begin
-                // execute block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('true -> execute');
-              end else begin
-                // skip block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('false -> skip');
-                SkipLvl:=IfLvl;
-                Skip:=skipIf;
-              end;
-            end;
-          end;
-        'else':
-          begin
-            if IfLvl=0 then
-              CfgSyntaxError('"'+Directive+'" without #ifdef');
-            if (Skip=skipElse) and (IfLvl=SkipLvl) then
-              CfgSyntaxError('"there was already an #else');
-            if (Skip=skipIf) and (IfLvl=SkipLvl) then
-            begin
-              // if-block was skipped -> execute else block
+              // execute block
               if Compiler.ShowDebug then
-                DebugCfgDirective('execute');
-              SkipLvl:=0;
-              Skip:=skipNone;
-            end else if Skip=skipNone then
-            begin
-              // if-block was executed -> skip else block
+                DebugCfgDirective('true -> execute');
+            end else begin
+              // skip block
               if Compiler.ShowDebug then
-                DebugCfgDirective('skip');
-              Skip:=skipElse;
+                DebugCfgDirective('false -> skip');
               SkipLvl:=IfLvl;
-            end;
-          end;
-        'elseif':
-          begin
-            if IfLvl=0 then
-              CfgSyntaxError('"'+Directive+'" without #ifdef');
-            if (Skip=skipIf) and (IfLvl=SkipLvl) then
-            begin
-              // if-block was skipped -> try this elseif
-              Expr:=copy(Line,p,length(Line));
-              if ConditionEvaluator.Eval(Expr) then
-              begin
-                // execute elseif block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('true -> execute');
-                SkipLvl:=0;
-                Skip:=skipNone;
-              end else begin
-                // skip elseif block
-                if Compiler.ShowDebug then
-                  DebugCfgDirective('false -> skip');
-              end;
-            end else if Skip=skipNone then
-            begin
-              // if-block was executed -> skip without test
-              if Compiler.ShowDebug then
-                DebugCfgDirective('no test -> skip');
               Skip:=skipIf;
             end;
           end;
-        'endif':
+        end
+        else if Directive = 'if' then
+        begin
+          inc(IfLvl);
+          if Skip=skipNone then
           begin
-            if IfLvl=0 then
-              CfgSyntaxError('"'+Directive+'" without #ifdef');
-            dec(IfLvl);
-            if IfLvl<SkipLvl then
+            Expr:=copy(Line,p,length(Line));
+            if ConditionEvaluator.Eval(Expr) then
             begin
-              // end block
+              // execute block
               if Compiler.ShowDebug then
-                DebugCfgDirective('end block');
-              SkipLvl:=0;
-              Skip:=skipNone;
+                DebugCfgDirective('true -> execute');
+            end else begin
+              // skip block
+              if Compiler.ShowDebug then
+                DebugCfgDirective('false -> skip');
+              SkipLvl:=IfLvl;
+              Skip:=skipIf;
             end;
           end;
-        'error':
+        end
+        else if Directive = 'else' then
+        begin
+          if IfLvl=0 then
+            CfgSyntaxError('"'+Directive+'" without #ifdef');
+          if (Skip=skipElse) and (IfLvl=SkipLvl) then
+            CfgSyntaxError('"there was already an #else');
+          if (Skip=skipIf) and (IfLvl=SkipLvl) then
+          begin
+            // if-block was skipped -> execute else block
+            if Compiler.ShowDebug then
+              DebugCfgDirective('execute');
+            SkipLvl:=0;
+            Skip:=skipNone;
+          end else if Skip=skipNone then
+          begin
+            // if-block was executed -> skip else block
+            if Compiler.ShowDebug then
+              DebugCfgDirective('skip');
+            Skip:=skipElse;
+            SkipLvl:=IfLvl;
+          end;
+        end
+        else if Directive = 'elseif' then
+        begin
+          if IfLvl=0 then
+            CfgSyntaxError('"'+Directive+'" without #ifdef');
+          if (Skip=skipIf) and (IfLvl=SkipLvl) then
+          begin
+            // if-block was skipped -> try this elseif
+            Expr:=copy(Line,p,length(Line));
+            if ConditionEvaluator.Eval(Expr) then
+            begin
+              // execute elseif block
+              if Compiler.ShowDebug then
+                DebugCfgDirective('true -> execute');
+              SkipLvl:=0;
+              Skip:=skipNone;
+            end else begin
+              // skip elseif block
+              if Compiler.ShowDebug then
+                DebugCfgDirective('false -> skip');
+            end;
+          end else if Skip=skipNone then
+          begin
+            // if-block was executed -> skip without test
+            if Compiler.ShowDebug then
+              DebugCfgDirective('no test -> skip');
+            Skip:=skipIf;
+          end;
+        end
+        else if Directive = 'endif' then
+        begin
+          if IfLvl=0 then
+            CfgSyntaxError('"'+Directive+'" without #ifdef');
+          dec(IfLvl);
+          if IfLvl<SkipLvl then
+          begin
+            // end block
+            if Compiler.ShowDebug then
+              DebugCfgDirective('end block');
+            SkipLvl:=0;
+            Skip:=skipNone;
+          end;
+        end
+        else if Directive = 'error' then
           Compiler.ParamFatal('user defined: '+copy(Line,p,length(Line)))
         else
+        begin
           if Skip=skipNone then
             CfgSyntaxError('unknown directive "#'+Directive+'"')
           else
@@ -2943,7 +2945,7 @@ procedure TPas2jsCompiler.InitParamMacros;
 begin
   ParamMacros.AddValue('Pas2jsFullVersion','major.minor.release<extra>',GetVersion(false));
   ParamMacros.AddValue('Pas2jsVersion','major.minor.release',GetVersion(true));
-  ParamMacros.AddFunction('CfgDir','Use within a config file. The directory of this config file',@OnMacroCfgDir,false);
+  ParamMacros.AddFunction('CfgDir','Use within a config file. The directory of this config file',{$IFDEF FPC}@{$ENDIF}OnMacroCfgDir,false);
   // Additionally, under windows the following special variables are recognized:
 
 { ToDo:
@@ -3425,7 +3427,7 @@ Var
   i: Integer;
   enable: Boolean;
   pbi: TPas2JSBuiltInName;
-
+  lo: string;
 begin
   Result:=True;
   case c of
@@ -3441,11 +3443,9 @@ begin
   'e': // -Je<encoding>
     begin
       S:=NormalizeEncoding(aValue);
-      case S of
-      {$IFDEF FPC_HAS_CPSTRING}
-      'console','system',
-      {$ENDIF}
-      'utf8', 'json':
+      if {$IFDEF FPC_HAS_CPSTRING}(s = 'console') or (s = 'system') or{$ENDIF}
+        (s = 'utf8') or (s = 'json')
+      then begin
         if Log.Encoding<>S then begin
           Log.Encoding:=S;
           if FHasShownEncoding then begin
@@ -3453,8 +3453,8 @@ begin
             WriteEncoding;
           end;
         end;
-      else ParamFatal('invalid encoding (-Je) "'+aValue+'"');
-      end;
+      end else
+        ParamFatal('invalid encoding (-Je) "'+aValue+'"');
     end;
   'a', // -Ja<js-file>
   'i': // -Ji<js-file>
@@ -3494,39 +3494,34 @@ begin
         Result:=False
       else
         SrcMapEnable:=false;
-    end else
-    begin
-      case aValue of
-      'include':
-        SrcMapInclude:=true;
-      'include-':
-        SrcMapInclude:=false;
-      'absolute':
-        SrcMapFilenamesAbsolute:=true;
-      'absolute-':
-        SrcMapFilenamesAbsolute:=false;
-      'xssiheader':
-        SrcMapXSSIHeader:=true;
-      'xssiheader-':
-        SrcMapXSSIHeader:=false;
-      else
-        begin
+    end else begin
+      if aValue = 'include' then
+        SrcMapInclude := true
+      else if aValue = 'include-' then
+        SrcMapInclude := false
+      else if aValue = 'absolute' then
+        SrcMapFilenamesAbsolute := true
+      else if aValue = 'absolute-' then
+        SrcMapFilenamesAbsolute := false
+      else if aValue = 'xssiheader' then
+        SrcMapXSSIHeader := true
+      else if aValue = 'xssiheader-' then
+        SrcMapXSSIHeader := false
+      else begin
         i:=Pos('=',aValue);
         if i<1 then
           ParamFatal('unknown -Jm parameter "'+aValue+'"')
-        else
-          begin
+        else begin
           S:=LeftStr(aValue,i-1);
           Delete(aValue,1,i);
-          Case s of
-            'sourceroot': SrcMapSourceRoot:=aValue;
-            'basedir': SrcMapBaseDir:=aValue;
+          if s = 'sourceroot' then
+            SrcMapSourceRoot := aValue
+          else if s = 'basedir' then
+            SrcMapBaseDir := aValue
           else
             ParamFatal('unknown -Jm parameter "'+s+'"')
           end;
           end;
-        end;
-      end;
       // enable source maps when setting any -Jm<x> option
       SrcMapEnable:=true;
     end;
@@ -3545,7 +3540,11 @@ begin
           ParamFatal('expected -Jortl-name=value');
         aName:='pbi'+copy(S,5,i-5);
         S:=copy(S,i+1,255);
+        {$IFDEF DCC}
+        pbi := TRttiEnumerationType.GetValue<TPas2JSBuiltInName>(aName);
+        {$ELSE}
         val(aName,pbi,i);
+        {$ENDIF}
         if i<>0 then
           ParamFatal('unknown rtl identifier "'+aName+'"');
         if IsValidJSIdentifier(TJSString(ConverterGlobals.BuiltInNames[pbi]))
@@ -3561,17 +3560,21 @@ begin
           Enable:=c='+';
           Delete(S,length(S),1);
         end;
-        Case lowercase(S) of
-          'searchlikefpc': FS.SearchLikeFPC:=Enable;
-          'usestrict': SetOption(coUseStrict,Enable);
-          'checkversion=main': RTLVersionCheck:=rvcMain;
-          'checkversion=system': RTLVersionCheck:=rvcSystem;
-          'checkversion=unit': RTLVersionCheck:=rvcUnit;
+        lo := lowercase(s);
+        if lo = 'searchlikefpc' then
+          FS.SearchLikeFPC := Enable
+        else if lo = 'usestrict' then
+          SetOption(coUseStrict, Enable)
+        else if lo = 'checkversion=main' then
+          RTLVersionCheck := rvcMain
+        else if lo = 'checkversion=system' then
+          RTLVersionCheck := rvcSystem
+        else if lo = 'checkversion=unit' then
+          RTLVersionCheck := rvcUnit
         else
           Result:=False;
         end;
       end;
-    end;
   'p': // -Jp<...>
     begin
     if not Assigned(PostProcessorSupport) then
@@ -3637,23 +3640,25 @@ function TPas2jsCompiler.HandleOptionM(aValue: String; Quick: Boolean): Boolean;
 var
   Negated: Boolean;
   ms: TModeSwitch;
+  lo: string;
 begin
   Result:=True;
   if aValue='' then
     ParamFatal('invalid syntax mode (-M<x>) "'+aValue+'"');
   if Quick then exit;
-
-  case lowerCase(aValue) of
-    'delphi': SetMode(p2jmDelphi);
-    'objfpc': SetMode(p2jmObjFPC);
-  else
+  lo := lowerCase(aValue);
+  if lo = 'delphi' then
+    SetMode(p2jmDelphi)
+  else if lo = 'objfpc' then
+    SetMode(p2jmObjFPC)
+  else begin
     if aValue[length(aValue)]='-' then
     begin
       aValue:=LeftStr(aValue,length(aValue)-1);
       Negated:=true;
     end else
       Negated:=false;
-    for ms in TModeSwitch do
+    for ms := Low(TModeSwitch) to High(TModeSwitch) do
       if (ms in msAllPas2jsModeSwitches)
           and SameText(SModeSwitchNames[ms],aValue) then
       begin
@@ -3761,7 +3766,7 @@ begin
       end;
     'c':
       // write list of supported JS processors
-      for pr in TPasToJsProcessor do
+      for pr := Low(TPasToJsProcessor) to High(TPasToJsProcessor) do
         Log.LogPlain(PasToJsProcessorNames[pr]);
     'm':
       begin
@@ -3779,15 +3784,19 @@ begin
       end;
     't':
       // write list of supported targets
-      for pl in TPasToJsPlatform do
+      for pl := Low(TPasToJsPlatform) to High(TPasToJsPlatform) do
         Log.LogPlain(PasToJsPlatformNames[pl]);
     'J':
       // write list of RTL identifiers
       begin
         Log.LogPlain('-JoRTL-<x> identifiers:');
-        for pbi in TPas2JSBuiltInName do
+        for pbi := Low(TPas2JSBuiltInName) to High(TPas2JSBuiltInName) do
         begin
+          {$IFDEF DCC}
+          s := TRttiEnumerationType.GetName(pbi);
+          {$ELSE}
           str(pbi,s);
+          {$ENDIF}
           Delete(s,1,3);
           Log.LogPlain('-JoRTL-'+s+'='+Pas2JSBuiltInNames[pbi]);
         end;
@@ -3804,6 +3813,7 @@ end;
 function TPas2jsCompiler.HandleOptionOptimization(C: Char; aValue: String): Boolean;
 Var
   Enable: Boolean;
+  lo: string;
 begin
   Result:=True;
   case C of
@@ -3825,15 +3835,19 @@ begin
       Enable:=false;
       Delete(aValue,1,2);
     end;
-    Case LowerCase(aValue) of
-     'enumnumbers': SetOption(coEnumValuesAsNumbers,Enable);
-     'removenotusedprivates': SetOption(coKeepNotUsedPrivates,not Enable);
-     'removenotuseddeclarations': SetOption(coKeepNotUsedDeclarationsWPO,not Enable);
-     'shortrefglobals': SetOption(coShortRefGlobals,Enable);
-     'obfuscatelocalidentifiers': SetOption(coObfuscateLocalIdentifiers,Enable);
+    lo := LowerCase(aValue);
+    if lo = 'enumnumbers' then
+      SetOption(coEnumValuesAsNumbers,Enable)
+    else if lo = 'removenotusedprivates' then
+      SetOption(coKeepNotUsedPrivates,not Enable)
+    else if lo = 'removenotuseddeclarations' then
+      SetOption(coKeepNotUsedDeclarationsWPO,not Enable)
+    else if lo = 'shortrefglobals' then
+      SetOption(coShortRefGlobals,Enable)
+    else if lo = 'obfuscatelocalidentifiers' then
+      SetOption(coObfuscateLocalIdentifiers,Enable)
     else
       Log.LogMsgIgnoreFilter(nUnknownOptimizationOption,[QuoteStr(aValue)]);
-    end;
     end;
   else
     Result:=False;
@@ -3989,7 +4003,7 @@ begin
         end;
       'P': // target processor
         begin
-        for aProc in TPasToJsProcessor do
+        for aProc := Low(TPasToJsProcessor) to High(TPasToJsProcessor) do
           if SameText(aValue,PasToJsProcessorNames[aProc]) then
             begin
             TargetProcessor:=aProc;
@@ -4019,7 +4033,7 @@ begin
         begin
         inc(p);
         Identifier:=copy(Param,p,length(Param));
-        for aPlatform in TPasToJsPlatform do
+        for aPlatform := Low(TPasToJsPlatform) to High(TPasToJsPlatform) do
           if SameText(Identifier,PasToJsPlatformNames[aPlatform]) then
             begin
             TargetPlatform:=aPlatform;
@@ -4047,7 +4061,7 @@ begin
     end;
   '@':
     if not Quick then
-      HandleOptionConfigFile(i,copy(Param,2,length(Param)));
+      HandleOptionConfigFile(l,copy(Param,2,length(Param)));
   else
     // filename
     if (not Quick) then
@@ -4084,13 +4098,13 @@ begin
     if (p<=l) and (Param[p]='-') then
     begin
       // disable
-      if Pos(Letter,Disabled)<1 then Disabled+=Letter;
+      if Pos(Letter,Disabled)<1 then Disabled := Disabled + Letter;
       i:=Pos(Letter,Enabled);
       if i>0 then Delete(Enabled,i,1);
       inc(p);
     end else begin
       // enable
-      if Pos(Letter,Enabled)<1 then Enabled+=Letter;
+      if Pos(Letter,Enabled)<1 then Enabled := Enabled + Letter;
       i:=Pos(Letter,Disabled);
       if i>0 then Delete(Disabled,i,1);
       if (p<=l) and (Param[p]='+') then inc(p);
@@ -4286,7 +4300,7 @@ begin
   FAppendFileNames:=TStringList.Create;
   FImports:=CreateImportList;
   FLog:=CreateLog;
-  FLog.OnFormatPath:=@FormatPath;
+  FLog.OnFormatPath:={$IFDEF FPC}@{$ENDIF}FormatPath;
   FParamMacros:=CreateMacroEngine;
   RegisterMessages;
   FS:=CreateFS;
@@ -4294,7 +4308,7 @@ begin
 
   // Done by Reset: TStringList(FDefines).Sorted:=True;
   // Done by Reset: TStringList(FDefines).Duplicates:=dupError;
-  //FConditionEval.OnEvalFunction:=@ConditionEvalFunction;
+  //FConditionEval.OnEvalFunction:={$IFDEF FPC}@{$ENDIF}ConditionEvalFunction;
 
   FFiles:=CreateSetOfCompilerFiles(kcFilename);
   FUnits:=CreateSetOfCompilerFiles(kcUnitName);
@@ -4415,7 +4429,7 @@ class function TPas2jsCompiler.GetVersion(ShortVersion: boolean): string;
 begin
   Result:=IntToStr(VersionMajor)+'.'+IntToStr(VersionMinor)+'.'+IntToStr(VersionRelease);
   if not ShortVersion then
-    Result+=VersionExtra;
+    Result := Result + VersionExtra;
 end;
 
 procedure TPas2jsCompiler.WritePrecompiledFormats;
@@ -4730,8 +4744,7 @@ end;
 
 procedure TPas2jsCompiler.WriteHelp;
 
-  procedure w(s: string); inline;
-
+  procedure w(s: string);
   begin
     WriteHelpLine(S);
   end;
@@ -4913,7 +4926,9 @@ var
   s: String;
 begin
   s:='Pas2JS Compiler version '+GetVersion(false);
+  {$IFDEF FPC}
   s:=s+' ['+{$i %Date%}+'] for '+{$i %FPCTargetOS%}+' '+{$i %FPCTargetCPU%};
+  {$ENDIF}
   Log.LogPlain(s);
   if coShowInfos in Options then
     WriteEncoding;
@@ -4944,10 +4959,10 @@ begin
     end;
   Log.LogMsgIgnoreFilter(nClassInterfaceStyleIs,[InterfaceTypeNames[InterfaceType]]);
   // boolean options
-  for co in TP2jsCompilerOption do
+  for co := Low(TP2jsCompilerOption) to High(TP2jsCompilerOption) do
     Log.LogMsgIgnoreFilter(nOptionIsEnabled,
       [p2jscoCaption[co],BoolToStr(co in Options,'enabled','disabled')]);
-  for fco in TP2jsFSOption do
+  for fco := Low(TP2jsFSOption) to High(TP2jsFSOption) do
     Log.LogMsgIgnoreFilter(nOptionIsEnabled,
       [p2jsfcoCaption[fco],BoolToStr(fco in FS.Options,'enabled','disabled')]);
 
@@ -4975,10 +4990,14 @@ begin
     else
       Log.Log(mtInfo,SafeFormat(SLogMacroDefined,[S]),nLogMacroDefined,'',0,0,false)
     end;
-  for pbi in TPas2JSBuiltInName do
+  for pbi := Low(TPas2JSBuiltInName) to High(TPas2JSBuiltInName) do
     if Pas2JSBuiltInNames[pbi]<>ConverterGlobals.BuiltInNames[pbi] then
     begin
+      {$IFDEF DCC}
+      S := TRttiEnumerationType.GetName(pbi);
+      {$ELSE}
       WriteStr(S,pbi);
+      {$ENDIF}
       S:=copy(S,4,255);
       Log.LogMsgIgnoreFilter(nRTLIdentifierChanged,[QuoteStr(S),
         QuoteStr(Pas2JSBuiltInNames[pbi]),QuoteStr(ConverterGlobals.BuiltInNames[pbi])]);
@@ -5185,7 +5204,7 @@ begin
   // scanner
   aFile.ResourceHandler:=FResources;;
   aFile.CreateScannerAndParser(FS.CreateResolver);
-  aFile.Scanner.OnLinkLib:=@HandleLinkLibStatement;
+  aFile.Scanner.OnLinkLib:={$IFDEF FPC}@{$ENDIF}HandleLinkLibStatement;
   if ShowDebug then
     Log.LogPlain(['Debug: Opening file "',UnitFilename,'"...']);
   if IsPCU then
@@ -5543,8 +5562,8 @@ var
         begin
           CyclePath:='';
           for i:=0 to Cycle.Count-1 do begin
-            if i>0 then CyclePath+=',';
-            CyclePath+=TPas2jsCompilerFile(Cycle[i]).GetModuleName;
+            if i>0 then CyclePath := CyclePath + ',';
+            CyclePath := CyclePath + TPas2jsCompilerFile(Cycle[i]).GetModuleName;
           end;
           Context.PascalResolver.RaiseMsg(20180223141537,nUnitCycle,sUnitCycle,[CyclePath],Info.NameExpr);
         end;

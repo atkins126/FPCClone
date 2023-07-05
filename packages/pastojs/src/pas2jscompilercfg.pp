@@ -18,7 +18,9 @@
 }
 unit Pas2JSCompilerCfg;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 

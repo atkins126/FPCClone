@@ -454,13 +454,13 @@ Debugging this unit: -d<x>
 *)
 unit FPPas2Js;
 
-{$mode objfpc}{$H+}
-{$inline on}
-
 {$ifdef fpc}
+  {$mode objfpc}{$H+}
+  {$inline on}
+
   {$define UsePChar}
   {$define HasInt64}
-  {$IF FPC_FULLVERSION>30300}
+  {$IF Defined(FPC_FULLVERSION) and (FPC_FULLVERSION>30300)}
     {$WARN 6018 off : Unreachable code}
   {$ENDIF}
 {$endif}
@@ -471,13 +471,9 @@ unit FPPas2Js;
 interface
 
 uses
-  {$ifdef pas2js}
-  {$else}
-  AVL_Tree,
-  {$endif}
   Classes, SysUtils, math, contnrs,
   jsbase, jstree, jswriter,
-  PasTree, PScanner, PasResolveEval, PasResolver;
+  PasTree, PScanner, PasResolveEval, PasResolver{$IFDEF DCC}, Delphi.Helper, Rtti{$ENDIF};
 
 // message numbers
 const
@@ -1521,10 +1517,10 @@ type
     FOverloadScopes: TFPList; // list of TPasIdentifierScope
     function HasOverloadIndex(El: TPasElement; WithElevatedLocal: boolean = false): boolean; virtual;
     function GetOverloadIndex(Identifier: TPasIdentifier;
-      StopAt: TPasElement): integer;
-    function GetOverloadAt(Identifier: TPasIdentifier; var Index: integer): TPasIdentifier;
-    function GetOverloadIndex(El: TPasElement): integer;
-    function GetOverloadAt(const aName: String; Index: integer): TPasIdentifier;
+      StopAt: TPasElement): integer; overload;
+    function GetOverloadAt(Identifier: TPasIdentifier; var Index: integer): TPasIdentifier; overload;
+    function GetOverloadIndex(El: TPasElement): integer; overload;
+    function GetOverloadAt(const aName: String; Index: integer): TPasIdentifier; overload;
     function GetElevatedLocals(Scope: TPasScope): TPas2jsElevatedLocals;
     function RenameOverload(El: TPasElement): boolean;
     procedure RenameOverloadsInSection(aSection: TPasSection);
@@ -1598,7 +1594,7 @@ type
     function IsSpecializedNonStaticMethod(ProcType: TPasProcedureType): boolean;
   protected
     const
-      cJSValueConversion = 2*cTypeConversion;
+      cJSValueConversion = 2* TPasResolver.cTypeConversion;
     // additional base types
     function AddJSBaseType(const aName: string; Typ: TPas2jsBaseType): TResElDataPas2JSBaseType;
     function CheckAssignCompatibilityCustom(const LHS,
@@ -1639,9 +1635,9 @@ type
     destructor Destroy; override;
     procedure ClearBuiltInIdentifiers; override;
     // base types
-    function IsJSBaseType(TypeEl: TPasType; Typ: TPas2jsBaseType): boolean;
+    function IsJSBaseType(TypeEl: TPasType; Typ: TPas2jsBaseType): boolean; overload;
     function IsJSBaseType(const TypeResolved: TPasResolverResult;
-      Typ: TPas2jsBaseType; HasValue: boolean = false): boolean;
+      Typ: TPas2jsBaseType; HasValue: boolean = false): boolean; overload;
     procedure AddObjFPCBuiltInIdentifiers(
       const TheBaseTypes: TResolveBaseTypes;
       const TheBaseProcs: TResolverBuiltInProcs); override;
@@ -1801,11 +1797,11 @@ type
     function CreateLocalIdentifier(const Prefix: string; El: TPasElement; aKind: TCtxVarKind): string; virtual;
     function ToString: string; override;
     function GetLocalName(El: TPasElement; const Filter: TCtxVarKinds): string; override;
-    function IndexOfLocalVar(const aName: string): integer;
-    function IndexOfLocalVar(El: TPasElement; const Filter: TCtxVarKinds): integer;
+    function IndexOfLocalVar(const aName: string): integer; overload;
+    function IndexOfLocalVar(El: TPasElement; const Filter: TCtxVarKinds): integer; overload;
     function FindLocalVar(const aName: string; WithParents: boolean): TFCLocalIdentifier;
-    function FindPrecompiledVar(const aName: string; WithParents: boolean): TPas2JSStoredLocalVar; virtual;
-    function FindPrecompiledVar(El: TPasElement; WithParents: boolean): TPas2JSStoredLocalVar; virtual;
+    function FindPrecompiledVar(const aName: string; WithParents: boolean): TPas2JSStoredLocalVar; overload; virtual;
+    function FindPrecompiledVar(El: TPasElement; WithParents: boolean): TPas2JSStoredLocalVar; overload; virtual;
     procedure DoWriteStack(Index: integer); override;
   end;
 
@@ -1954,11 +1950,11 @@ type
       AContext: TConvertContext; PosEl: TPasElement = nil): TJSElement;
     Function CreateSubDeclNameExpr(El: TPasElement;
       AContext: TConvertContext; PosEl: TPasElement = nil): TJSElement;
-    Function CreateIdentifierExpr(El: TPasElement; AContext: TConvertContext): TJSElement;
-    Function CreateIdentifierExpr(AName: string; CheckGlobal: boolean; PosEl: TPasElement; AContext: TConvertContext): TJSElement;
+    Function CreateIdentifierExpr(El: TPasElement; AContext: TConvertContext): TJSElement; overload;
+    Function CreateIdentifierExpr(AName: string; CheckGlobal: boolean; PosEl: TPasElement; AContext: TConvertContext): TJSElement; overload;
     Function CreateSwitchStatement(El: TPasImplCaseOf; AContext: TConvertContext): TJSElement;
     Function CreateTypeDecl(El: TPasType; AContext: TConvertContext): TJSElement;
-    Function CreateVarDecl(El: TPasVariable; AContext: TConvertContext): TJSElement;
+    Function CreateVarDecl(El: TPasVariable; AContext: TConvertContext): TJSElement; overload;
     Procedure AddToSourceElements(Src: TJSSourceElements; El: TJSElement);
     procedure RemoveFromSourceElements(Src: TJSSourceElements;
       El: TJSElement);
@@ -1981,11 +1977,11 @@ type
       CreateRefPathData: Pointer): TJSElement;
   protected
     // Error functions
-    Procedure DoError(Id: TMaxPrecInt; Const Msg : String);
+    Procedure DoError(Id: TMaxPrecInt; Const Msg : String); overload;
     Procedure DoError(Id: TMaxPrecInt; Const Msg : String;
-      const Args: array of const);
+      const Args: array of const); overload;
     Procedure DoError(Id: TMaxPrecInt; MsgNumber: integer; const MsgPattern: string;
-      const Args: array of const; El: TPasElement);
+      const Args: array of const; El: TPasElement); overload;
     procedure RaiseNotSupported(El: TPasElement; AContext: TConvertContext; Id: TMaxPrecInt; const Msg: string = '');
     procedure RaiseIdentifierNotFound(Identifier: string; El: TPasElement; Id: TMaxPrecInt);
     procedure RaiseInconsistency(Id: TMaxPrecInt; El: TPasElement);
@@ -2037,8 +2033,8 @@ type
       AContext: TConvertContext): TJSElement; virtual;
     Function CreateProcCallArgRef(El: TPasExpr; ResolvedEl: TPasResolverResult;
       TargetArg: TPasArgument;  AContext: TConvertContext): TJSElement; virtual;
-    Function CreateArrayEl(El: TPasExpr; AContext: TConvertContext): TJSElement; virtual;
-    Function CreateArrayEl(El: TPasExpr; JS: TJSElement; AContext: TConvertContext): TJSElement; virtual;
+    Function CreateArrayEl(El: TPasExpr; AContext: TConvertContext): TJSElement; overload; virtual;
+    Function CreateArrayEl(El: TPasExpr; JS: TJSElement; AContext: TConvertContext): TJSElement; overload; virtual;
     Function CreateArgumentAccess(Arg: TPasArgument; AContext: TConvertContext;
       PosEl: TPasElement): TJSElement; virtual;
     Function CreateUnary(Members: array of string; E: TJSElement): TJSUnary;
@@ -2061,7 +2057,7 @@ type
     Function CreateVarInit(El: TPasVariable; AContext: TConvertContext): TJSElement; virtual;
     Function CreateVarStatement(const aName: String; Init: TJSElement;
       El: TPasElement): TJSVariableStatement; virtual;
-    Function CreateVarDecl(const aName: String; Init: TJSElement; El: TPasElement): TJSVarDeclaration; virtual;
+    Function CreateVarDecl(const aName: String; Init: TJSElement; El: TPasElement): TJSVarDeclaration; overload; virtual;
     // misc
     Function CreateExternalBracketAccessorCall(El: TParamsExpr; AContext: TConvertContext): TJSElement; virtual;
     Function CreateAssignStatement(LeftEl: TPasExpr; AssignContext: TAssignContext): TJSElement; virtual;
@@ -2477,13 +2473,12 @@ begin
     exit(TJSPrimaryExpressionIdent(A).Name=TJSPrimaryExpressionIdent(B).Name)
   else if A.ClassType=TJSPrimaryExpressionThis then
   else if A.ClassType=TJSDotMemberExpression then
-    Result:=JSEquals(TJSDotMemberExpression(A).MExpr,TJSDotMemberExpression(B).MExpr)
-        and (TJSDotMemberExpression(A).Name=TJSDotMemberExpression(B).Name)
+    Exit(JSEquals(TJSDotMemberExpression(A).MExpr,TJSDotMemberExpression(B).MExpr)
+      and (TJSDotMemberExpression(A).Name=TJSDotMemberExpression(B).Name))
   else if A.ClassType=TJSBracketMemberExpression then
-    Result:=JSEquals(TJSBracketMemberExpression(A).MExpr,TJSBracketMemberExpression(B).MExpr)
-        and (TJSBracketMemberExpression(A).Name=TJSBracketMemberExpression(B).Name)
-  else
-    exit(false);
+    Exit(JSEquals(TJSBracketMemberExpression(A).MExpr,TJSBracketMemberExpression(B).MExpr)
+      and (TJSBracketMemberExpression(A).Name=TJSBracketMemberExpression(B).Name));
+  exit(false);
 end;
 
 function dbgs(opts: TPasToJsConverterOptions): string;
@@ -2495,7 +2490,11 @@ begin
   for o in opts do
     begin
     if Result<>'' then Result:=Result+',';
+    {$IFDEF DCC}
+    h := TRttiEnumerationType.GetName(o);
+    {$ELSE}
     str(o,h);
+    {$ENDIF}
     Result:=Result+h;
     end;
   Result:='['+Result+']';
@@ -2671,7 +2670,7 @@ procedure TPasToJSConverterGlobals.ResetBuiltInNames;
 var
   n: TPas2JSBuiltInName;
 begin
-  for n in TPas2JSBuiltInName do
+  for n := Low(TPas2JSBuiltInName) to High(TPas2JSBuiltInName) do
     BuiltInNames[n]:=Pas2JSBuiltInNames[n];
 end;
 
@@ -2679,7 +2678,7 @@ end;
 
 procedure TPas2jsElevatedLocals.InternalAdd(Item: TPasIdentifier);
 var
-  {$IFDEF fpc}
+  {$IF DEFINED(FPC) or DEFINED(DCC)}
   Index: Integer;
   {$ENDIF}
   OldItem: TPasIdentifier;
@@ -2710,13 +2709,14 @@ begin
   if Index>=0 then
     begin
     // insert LIFO - last in, first out
-    OldItem:=TPasIdentifier(FElevatedLocals.List^[Index].Data);
+    OldItem:=TPasIdentifier(FElevatedLocals{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF});
+
     {$IFDEF VerbosePasResolver}
     if lowercase(OldItem.Identifier)<>LoName then
       raise Exception.Create('20160925183438');
     {$ENDIF}
     Item.NextSameIdentifier:=OldItem;
-    FElevatedLocals.List^[Index].Data:=Item;
+    FElevatedLocals{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF}:=Item;
     end
   else
     begin
@@ -2752,7 +2752,7 @@ end;
 
 destructor TPas2jsElevatedLocals.Destroy;
 begin
-  FElevatedLocals.ForEachCall(@OnClear,nil);
+  FElevatedLocals.ForEachCall({$IFDEF FPC}@{$ENDIF}OnClear,nil);
   {$IFDEF pas2js}
   FElevatedLocals:=nil;
   {$ELSE}
@@ -2800,7 +2800,7 @@ end;
 procedure TPas2JSSectionScope.WriteElevatedLocals(Prefix: string);
 begin
   Prefix:=Prefix+'  ';
-  ElevatedLocals.FElevatedLocals.ForEachCall(@OnWriteItem,Pointer(Prefix));
+  ElevatedLocals.FElevatedLocals.ForEachCall({$IFDEF FPC}@{$ENDIF}OnWriteItem,Pointer(Prefix));
 end;
 
 { TPas2JSPrecompiledJS }
@@ -2891,6 +2891,7 @@ var
   Year, Month, Day, Hour, Minute, Second, MilliSecond: word;
   i: Integer;
   Scope: TPasScope;
+  loParam: string;
 begin
   if (Param<>'') and (Param[1]='%') then
   begin
@@ -2908,65 +2909,44 @@ begin
         ['$i '+copy(Param,1,255)+'...']);
       exit;
       end;
-    case lowercase(Param) of
-    '%date%':
-      begin
+    loParam := LowerCase(Param);
+    if loParam = '%date%' then begin
         // 'Y/M/D'
         DecodeDate(Now,Year,Month,Day);
         SetStr(IntToStr(Year)+'/'+IntToStr(Month)+'/'+IntToStr(Day));
         exit;
-      end;
-    '%time%':
-      begin
+    end else if loParam = '%time%' then begin
         // 'hh:mm:ss'
         DecodeTime(Now,Hour,Minute,Second,MilliSecond);
         SetStr(Format('%2d:%2d:%2d',[Hour,Minute,Second]));
         exit;
-      end;
-    '%pas2jstarget%','%fpctarget%',
-    '%pas2jstargetos%','%fpctargetos%':
-      begin
+    end else if (loParam = '%pas2jstarget%') or (loParam = '%fpctarget%')
+      or (loParam = '%pas2jstargetos%') or (loParam = '%fpctargetos%')
+    then begin
         SetStr(PasToJsPlatformNames[TargetPlatform]);
         exit;
-      end;
-    '%pas2jstargetcpu%','%fpctargetcpu%':
-      begin
+    end else if (loParam = '%pas2jstargetcpu%') or (loParam = '%fpctargetcpu%') then begin
         SetStr(PasToJsProcessorNames[TargetProcessor]);
         exit;
-      end;
-    '%pas2jsversion%','%fpcversion%':
-      begin
+    end else if (loParam = '%pas2jsversion%') or (loParam = '%fpcversion%') then begin
         SetStr(CompilerVersion);
         exit;
-      end;
-    '%file%':
-      begin
+    end else if loParam = '%file%' then begin
         SetStr(CurFilename);
         exit;
-      end;
-    '%filename%':
-      begin
+    end else if loParam = '%filename%' then begin
         SetStr(ExtractFileName(CurFilename));
         exit;
-      end;
-    '%unit%',
-    '%module%':
-      begin
+    end else if (loParam = '%unit%') or (loParam = '%module%') then begin
         SetStr(CurModuleName);
         exit;
-      end;
-    '%line%':
-      begin
+    end else if loParam = '%line%' then begin
         SetStr(IntToStr(CurRow));
         exit;
-      end;
-    '%linenum%':
-      begin
+    end else if loParam = '%linenum%' then begin
         SetInteger(CurRow);
         exit;
-      end;
-    '%currentroutine%':
-      begin
+    end else if loParam = '%currentroutine%' then begin
         if Resolver<>nil then
           for i:=Resolver.ScopeCount-1 downto 0 do
           begin
@@ -2980,8 +2960,7 @@ begin
           end;
         SetStr('<anonymous>');
         exit;
-      end;
-    else
+    end else begin
       SetStr(GetEnvironmentVariable(copy(Param,2,length(Param)-2)));
       exit;
     end;
@@ -2994,14 +2973,16 @@ procedure TPas2jsPasScanner.DoHandleOptimization(OptName, OptValue: string);
   procedure HandleBoolean(o: TPasToJsConverterOption; IsGlobalSwitch: boolean);
   var
     Enable: Boolean;
+    loOptValue: string;
   begin
     Enable:=false;
-    case lowercase(OptValue) of
-    '','on','+': Enable:=true;
-    'off','-': Enable:=false;
+    loOptValue := lowercase(OptValue);
+    if (loOptValue = '') or (loOptValue = 'on') or (loOptValue = '+') then
+      Enable:=true
+    else if (loOptValue = 'off') or (loOptValue = '-') then
+      Enable:=false
     else
       Error(nErrWrongSwitchToggle,SErrWrongSwitchToggle,[]);
-    end;
     if IsGlobalSwitch and SkipGlobalSwitches then
       begin
       DoLog(mtWarning,nMisplacedGlobalCompilerSwitch,SMisplacedGlobalCompilerSwitch,[]);
@@ -3019,19 +3000,20 @@ procedure TPas2jsPasScanner.DoHandleOptimization(OptName, OptValue: string);
       end;
   end;
 
+var
+ loOptName: string;
 begin
-  case lowercase(OptName) of
-  'enumnumbers':
-    HandleBoolean(coEnumNumbers,true);
-  'usestrict':
-    HandleBoolean(coUseStrict,true);
-  'jsshortrefglobals':
-    HandleBoolean(coShortRefGlobals,true);
-  'jsobfuscatelocalidentifiers':
-    HandleBoolean(coObfuscateLocalIdentifiers,true);
+  loOptName := lowercase(OptName);
+  if loOptName = 'enumnumbers' then
+    HandleBoolean(coEnumNumbers,true)
+  else if loOptName = 'usestrict' then
+    HandleBoolean(coUseStrict,true)
+  else if loOptName = 'jsshortrefglobals' then
+    HandleBoolean(coShortRefGlobals,true)
+  else if loOptName = 'jsobfuscatelocalidentifiers' then
+    HandleBoolean(coObfuscateLocalIdentifiers,true)
   else
     DoLog(mtWarning,nWarnIllegalCompilerDirectiveX,sWarnIllegalCompilerDirectiveX,['optimization '+OptName]);
-  end;
 end;
 
 function TPas2jsPasScanner.ReadNonPascalTillEndToken(StopAtLineEnd: boolean
@@ -3043,7 +3025,7 @@ var
 
   Procedure CommitTokenPos;
   begin
-    {$IFDEF Pas2js}
+    {$IF Defined(Pas2js) or Defined(DCC)}
     TokenPos:=MyTokenPos;
     {$ELSE}
     TokenPos:=PChar(s)+MyTokenPos-1;
@@ -3099,14 +3081,13 @@ begin
   SetCurTokenString('');
   s:=CurLine;
   l:=length(s);
-  {$IFDEF Pas2js}
+  {$IF Defined(Pas2js) or Defined(DCC)}
   MyTokenPos:=TokenPos;
   {$ELSE}
   {$IFDEF VerbosePas2JS}
   if (TokenPos<PChar(s)) or (TokenPos>PChar(s)+length(s)) then
     Error(nErrRangeCheck,'[20181109104812]');
   {$ENDIF}
-  MyTokenPos:=TokenPos-PChar(s)+1;
   {$ENDIF}
   StartPos:=MyTokenPos;
   repeat
@@ -3253,7 +3234,7 @@ end;
 
 procedure TPas2JSResolver.InternalAdd(Item: TPasIdentifier);
 var
-  {$IFDEF fpc}
+  {$IF DEFINED(FPC) or DEFINED(DCC)}
   Index: Integer;
   {$ENDIF}
   OldItem: TPasIdentifier;
@@ -3284,13 +3265,13 @@ begin
   if Index>=0 then
     begin
     // insert LIFO - last in, first out
-    OldItem:=TPasIdentifier(FExternalNames.List^[Index].Data);
+    OldItem:=TPasIdentifier(FExternalNames{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF});
     {$IFDEF VerbosePasResolver}
     if OldItem.Identifier<>aName then
       raise Exception.Create('20170322235429');
     {$ENDIF}
     Item.NextSameIdentifier:=OldItem;
-    FExternalNames.List^[Index].Data:=Item;
+    FExternalNames{$IFDEF DCC}[Index]{$ELSE}.List^[Index].Data{$ENDIF}:=Item;
     end
   else
     FExternalNames.Add(aName, Item);
@@ -4426,14 +4407,11 @@ const
 
   procedure RaiseVarModifierNotSupported(const Allowed: TVariableModifiers);
   var
-    s: String;
     m: TVariableModifier;
   begin
-    s:='';
-    for m in TVariableModifiers do
+    for m := Low(TVariableModifier) to High(TVariableModifier) do
       if (m in El.VarModifiers) and not (m in Allowed) then
         begin
-        str(m,s);
         RaiseMsg(20170322134418,nInvalidVariableModifier,
           sInvalidVariableModifier,[VariableModifierNames[m]],El);
         end;
@@ -5108,7 +5086,7 @@ begin
   Data.ErrorPosEl:=ErrorEl;
   Data.JSName:=JSName;
   Abort:=false;
-  IterateGlobalElements(aClassName,@OnFindExtSystemClass,@Data,Abort);
+  IterateGlobalElements(aClassName,{$IFDEF FPC}@{$ENDIF}OnFindExtSystemClass,@Data,Abort);
   Result:=Data.Found;
   if (ErrorEl<>nil) and (Result=nil) then
     RaiseIdentifierNotFound(20200526095647,aClassName+' = class external name '''+JSName+'''',ErrorEl);
@@ -5293,7 +5271,7 @@ begin
   FFirstElementData:=nil;
   FLastElementData:=nil;
 
-  FExternalNames.ForEachCall(@OnClearHashItem,nil);
+  FExternalNames.ForEachCall({$IFDEF FPC}@{$ENDIF}OnClearHashItem,nil);
   FExternalNames.Clear;
 end;
 
@@ -6073,7 +6051,7 @@ begin
   FindData:=Default(TPRFindData);
   FindData.ErrorPosEl:=Params;
   Abort:=false;
-  IterateElements(TIName,@OnFindFirst,@FindData,Abort);
+  IterateElements(TIName,{$IFDEF FPC}@{$ENDIF}OnFindFirst,@FindData,Abort);
   RestoreStashedScopes(ScopeDepth);
   {$IFDEF VerbosePas2JS}
   writeln('TPas2JSResolver.BI_TypeInfo_OnGetCallResult TIName="',TIName,'" FindData.Found="',GetObjName(FindData.Found),'"');
@@ -6453,9 +6431,9 @@ var
   pbp: TPas2jsBuiltInProc;
 begin
   inherited ClearBuiltInIdentifiers;
-  for bt in TPas2jsBaseType do
+  for bt := Low(TPas2jsBaseType) to High(TPas2jsBaseType) do
     FJSBaseTypes[bt]:=nil;
-  for pbp in TPas2jsBuiltInProc do
+  for pbp := Low(TPas2jsBuiltInProc) to High(TPas2jsBuiltInProc) do
     FJSBuiltInProcs[pbp]:=nil;
 end;
 
@@ -6501,12 +6479,12 @@ begin
     AddBaseType(Pas2JSBuiltInNames[pbitnIntDouble],btIntDouble);
   FJSBuiltInProcs[pbpDebugger]:=AddBuiltInProc(Pas2jsBuiltInProcNames[pbpDebugger],
       'procedure Debugger',
-      @BI_Debugger_OnGetCallCompatibility,nil,
+      {$IFDEF FPC}@{$ENDIF}BI_Debugger_OnGetCallCompatibility,nil,
       nil,nil,bfCustom,[bipfCanBeStatement]);
   FJSBuiltInProcs[pbpAWait]:=AddBuiltInProc(Pas2jsBuiltInProcNames[pbpAWait],
       'function await(const Expr: T): T',
-      @BI_AWait_OnGetCallCompatibility,@BI_AWait_OnGetCallResult,
-      @BI_AWait_OnEval,@BI_AWait_OnFinishParamsExpr,bfCustom,[bipfCanBeStatement]);
+      {$IFDEF FPC}@{$ENDIF}BI_AWait_OnGetCallCompatibility,{$IFDEF FPC}@{$ENDIF}BI_AWait_OnGetCallResult,
+      {$IFDEF FPC}@{$ENDIF}BI_AWait_OnEval,{$IFDEF FPC}@{$ENDIF}BI_AWait_OnFinishParamsExpr,bfCustom,[bipfCanBeStatement]);
 end;
 
 function TPas2JSResolver.CheckTypeCastRes(const FromResolved,
@@ -6723,7 +6701,7 @@ begin
     Result:=JSBaseTypes[TResElDataPas2JSBaseType(Data).JSBaseType]
   else if (Data.ClassType=TResElDataBuiltInProc)
       and (TResElDataBuiltInProc(Data).BuiltIn=bfCustom) then
-    for pbp in TPas2jsBuiltInProc do
+    for pbp := Low(TPas2jsBuiltInProc) to High(TPas2jsBuiltInProc) do
       if El.Name=Pas2jsBuiltInProcNames[pbp] then
         Result:=FJSBuiltInProcs[pbp].Element;
 end;
@@ -6899,7 +6877,11 @@ begin
       revkUnicodeString: Result:=TResEvalUTF16(Value).S;
       {$ENDIF}
       else
+        {$IFDEF DCC}
+        Result := TRttiEnumerationType.GetName(Value.Kind);
+        {$ELSE}
         str(Value.Kind,Result);
+        {$ENDIF}
         RaiseXExpectedButYFound(20170211221121,'string literal',Result,Expr);
       end;
     finally
@@ -7094,7 +7076,6 @@ begin
     end;
     ClassScope:=ClassScope.AncestorScope as TPas2JSClassScope;
     end;
-
   if FieldName='' then exit;
 
   // there is a Dispatch(str) method with a directive -> check field
@@ -7369,7 +7350,7 @@ begin
   if El=nil then
     exit(false);
   Data:=default(THasAnoFuncData);
-  El.ForEachCall(@OnHasAnonymousEl,@Data);
+  El.ForEachCall({$IFDEF FPC}@{$ENDIF}OnHasAnonymousEl,@Data);
   Result:=Data.Expr<>nil;
 end;
 
@@ -7632,7 +7613,7 @@ var
 begin
   Data.Decl:=Decl;
   Data.El:=nil;
-  Block.ForEachCall(@OnHasElReadingDecl,@Data);
+  Block.ForEachCall({$IFDEF FPC}@{$ENDIF}OnHasElReadingDecl,@Data);
   Result:=Data.El<>nil;
 end;
 
@@ -7868,7 +7849,11 @@ begin
   Result:=inherited ToString;
   if ThisVar.Element<>nil then
     begin
+    {$IFDEF DCC}
+    s := TRttiEnumerationType.GetName(ThisVar.Kind);
+    {$ELSE}
     str(ThisVar.Kind,s);
+    {$ENDIF}
     Result:=Result+' this,Kind='+s+',El='+GetObjPath(ThisVar.Element);
     end;
 end;
@@ -7985,7 +7970,7 @@ begin
   inherited DoWriteStack(Index);
   {AllowWriteln}
   for i:=0 to length(LocalVars)-1 do
-    writeln('    ',i,' ',LocalVars[i].Name,': ',GetObjName(LocalVars[i].Element),' ',LocalVars[i].Kind);
+    writeln('    ',i,' ',LocalVars[i].Name,': ',GetObjName(LocalVars[i].Element),' ',{$IFDEF DCC}TRttiEnumerationType.GetName{$ENDIF}(LocalVars[i].Kind));
   {AllowWriteln-}
 end;
 
@@ -8187,7 +8172,7 @@ begin
   Result:='['+ClassName+']'
     +' pas='+GetObjName(PasElement)
     +' js='+GetObjName(JSElement)
-    +' Global='+BoolToStr(IsGlobal,true);
+    +' Global='+SysUtils.BoolToStr(IsGlobal,true);
 end;
 
 { TPasToJSConverter }
@@ -10649,11 +10634,10 @@ begin
       bfContinue: Result:=ConvertBuiltInContinue(El,AContext);
       bfExit: Result:=ConvertBuiltIn_Exit(El,AContext);
       bfCustom:
-        case BuiltInProc.Element.Name of
-        'Debugger': Result:=ConvertBuiltIn_Debugger(El,AContext);
+        if BuiltInProc.Element.Name = 'Debugger' then
+          Result:=ConvertBuiltIn_Debugger(El,AContext)
         else
           RaiseNotSupported(El,AContext,20181126102554,'built in custom proc '+BuiltInProc.Element.Name);
-        end
     else
       RaiseNotSupported(El,AContext,20161130164955,'built in proc '+ResolverBuiltInProcNames[BuiltInProc.BuiltIn]);
     end;
@@ -11652,7 +11636,7 @@ var
           CreateRefPathData.Full:=false;
           CreateRefPathData.Ref:=GetValueReference;
           Call.Expr:=ConvertSubIdentExprCustom(Bin,AContext,
-            @OnCreateReferencePathExpr,@CreateRefPathData);
+            {$IFDEF FPC}@{$ENDIF}OnCreateReferencePathExpr,@CreateRefPathData);
           end
         else
           begin
@@ -12113,12 +12097,14 @@ begin
             end;
           bfDefault: Result:=ConvertBuiltIn_Default(El,AContext);
           bfCustom:
-            case BuiltInProc.Element.Name of
-            'Debugger': Result:=ConvertBuiltIn_Debugger(El,AContext);
-            'AWait': Result:=ConvertBuiltIn_AWait(El,AContext);
+          begin
+            if BuiltInProc.Element.Name = 'Debugger' then
+              Result:=ConvertBuiltIn_Debugger(El,AContext)
+            else if BuiltInProc.Element.Name = 'AWait' then
+              Result:=ConvertBuiltIn_AWait(El,AContext)
             else
               RaiseNotSupported(El,AContext,20181126101801,'built in custom proc '+BuiltInProc.Element.Name);
-            end;
+          end;
         else
           RaiseNotSupported(El,AContext,20161130164955,'built in proc '+ResolverBuiltInProcNames[BuiltInProc.BuiltIn]);
         end;
@@ -22666,7 +22652,7 @@ Var
   V : TJSVarDeclaration;
   vm: TVariableModifier;
 begin
-  for vm in TVariableModifier do
+  for vm := Low(TVariableModifier) to High(TVariableModifier) do
     if (vm in El.VarModifiers) and (not (vm in [vmClass,vmExternal])) then
       RaiseNotSupported(El,AContext,20170208141622,'modifier '+VariableModifierNames[vm]);
   if El.LibraryName<>nil then

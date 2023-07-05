@@ -18,7 +18,9 @@
 }
 unit Pas2jsPParser;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$i pas2js_defines.inc}
 
@@ -26,7 +28,7 @@ interface
 
 uses
   Classes, SysUtils, PParser, PScanner, PasTree, PasResolver, fppas2js,
-  Pas2jsLogger;
+  Pas2jsLogger{$IFDEF DCC}, Delphi.Helper{$ENDIF};
 
 const // Messages
   nFinalizationNotSupported = 3001;

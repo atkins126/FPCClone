@@ -605,22 +605,21 @@ begin
 end;
 {$endif not wince}
 
-{$ifdef WinCe}
 function UTF8ToConsole(const s: string): string; // converts UTF8 to console string (used by Write, WriteLn)
+{$ifdef WinCe}
 begin
   Result := UTF8ToSystemCP(s);
 end;
 {$else}
-function UTF8ToConsole(const s: string): string; // converts UTF8 to console string (used by Write, WriteLn)
 var
-  Dst: PChar;
+  Dst: PAnsiChar;
 begin
   {$ifndef NO_CP_RTL}
   Result := UTF8ToSystemCP(s);
   {$else NO_CP_RTL}
   Result := s; // Kept for compatibility
   {$endif NO_CP_RTL}
-  Dst := AllocMem((Length(Result) + 1) * SizeOf(Char));
+  Dst := AllocMem((Length(Result) + 1) * SizeOf(Dst));
   if CharToOEM(PChar(Result), Dst) then
     Result := StrPas(Dst);
   FreeMem(Dst);
@@ -630,18 +629,17 @@ begin
 end;
 {$endif not WinCE}
 
-{$ifdef WinCE}
 function ConsoleToUTF8(const s: string): string;// converts console encoding to UTF8
+{$ifdef WinCE}
 begin
   Result := SysToUTF8(s);
 end;
 {$else}
-function ConsoleToUTF8(const s: string): string;// converts console encoding to UTF8
 var
   Dst: PChar;
 begin
   Dst := AllocMem((Length(s) + 1) * SizeOf(Char));
-  if OemToChar(PChar(s), Dst) then
+  if OemToChar(PAnsiChar(AnsiString(s)), Dst) then
     Result := StrPas(Dst)
   else
     Result := s;

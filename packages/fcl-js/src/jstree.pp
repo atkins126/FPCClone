@@ -1,4 +1,4 @@
-{ ********************************************************************* 
+{ *********************************************************************
     This file is part of the Free Component Library (FCL)
     Copyright (c) 2016 Michael Van Canneyt.
        
@@ -14,8 +14,10 @@
   **********************************************************************}
 unit jstree;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
 { $DEFINE NOCLASSES}
+{$ENDIF}
 
 interface
 
@@ -148,7 +150,7 @@ Type
     Procedure UpdateParams;
     Property TypedParams : TJSTypedParams Read FTypedParams;
     Property ResultType : TJSTypeDef Read FResultType Write FResultType;
-    Property Params : TStrings Read FParams; deprecated 'use TypedParams instead';
+    Property Params : TStrings Read FParams;{$IFDEF FPC} deprecated 'use TypedParams instead';{$ENDIF}
     Property Body : TJSFunctionBody Read FBody Write FBody; // can be nil
     Property Name : TJSString Read FName Write FName;
     Property IsEmpty : Boolean Read FIsEmpty Write FIsEmpty;
@@ -397,7 +399,7 @@ Type
     Destructor Destroy; override;
     Function GetDeclaration : TJSElement; override;
     // For backwards Compatibility
-    Property A : TJSElement Read FA Write FA; deprecated 'Use VarDecl instead';
+    Property A : TJSElement Read FA Write FA;{$IFDEF FPC}  deprecated 'Use VarDecl instead';{$ENDIF}
     Property VarDecl : TJSElement Read FA Write FA;
   end;
 
@@ -1177,8 +1179,8 @@ Type
     Destructor Destroy; override;
     Procedure ClearNodes;
     Function GetEnumerator : TElementNodeEnumerator; reintroduce;
-    Function AddNode(aIsAmbient : Boolean = False; aIsExport : Boolean = False) : TJSElementNode;
-    Function AddNode(aEl : TJSElement; aIsAmbient : Boolean = False; aIsExport : Boolean = False) : TJSElementNode;
+    Function AddNode(aIsAmbient : Boolean = False; aIsExport : Boolean = False) : TJSElementNode; overload;
+    Function AddNode(aEl : TJSElement; aIsAmbient : Boolean = False; aIsExport : Boolean = False) : TJSElementNode; overload;
     Function InsertNode(Index: integer) : TJSElementNode;
     Property Nodes[AIndex : Integer] : TJSElementNode Read GetN ; default;
     Property JSElements[AIndex : Integer] : TJSElement Read GetE ;

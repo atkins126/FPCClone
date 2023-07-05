@@ -18,7 +18,9 @@
 }
 unit Pas2JSPCUCompiler;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 {$I pas2js_defines.inc}
 
@@ -55,8 +57,8 @@ Type
     destructor Destroy; override;
     function Compiler: TPas2JSCompiler;
     function HandleException(E: Exception): Boolean; override;
-    function FindPCU(const UseUnitName: string): string; override;
-    function FindPCU(const UseUnitName: string; out aFormat: TPas2JSPrecompileFormat): string;
+    function FindPCU(const UseUnitName: string): string; overload; override;
+    function FindPCU(const UseUnitName: string; out aFormat: TPas2JSPrecompileFormat): string; overload;
     function HasReader: Boolean; override;
     function ReadContinue: Boolean; override;
     function ReadCanContinue: Boolean; override;
@@ -311,14 +313,14 @@ begin
   Writer:=FPCUFormat.WriterClass.Create;
   try
     Writer.GUID:=Compiler.PrecompileGUID;
-    Writer.OnGetSrc:=@OnFilerGetSrc;
-    Writer.OnIsElementUsed:=@OnWriterIsElementUsed;
+    Writer.OnGetSrc:={$IFDEF FPC}@{$ENDIF}OnFilerGetSrc;
+    Writer.OnIsElementUsed:={$IFDEF FPC}@{$ENDIF}OnWriterIsElementUsed;
 
     // create JavaScript for procs, initialization, finalization
     MyFile.CreateConverter;
     MyFile.Converter.Options:=MyFile.Converter.Options+PCUMinConverterOptions;
-    MyFile.Converter.OnIsElementUsed:=@OnPCUConverterIsElementUsed;
-    MyFile.Converter.OnIsTypeInfoUsed:=@OnPCUConverterIsTypeInfoUsed;
+    MyFile.Converter.OnIsElementUsed:={$IFDEF FPC}@{$ENDIF}OnPCUConverterIsElementUsed;
+    MyFile.Converter.OnIsTypeInfoUsed:={$IFDEF FPC}@{$ENDIF}OnPCUConverterIsTypeInfoUsed;
     JS:=MyFile.Converter.ConvertPasElement(MyFile.PasModule,MyFile.PascalResolver);
     MyFile.PCUSupport.SetInitialCompileFlags;
     {$IFDEF REALLYVERBOSE}

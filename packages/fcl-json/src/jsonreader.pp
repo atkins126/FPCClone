@@ -19,7 +19,7 @@ unit jsonreader;
 interface
 
 uses
-  Classes, SysUtils, fpJSON, jsonscanner;
+  Classes, SysUtils, fpJSON, jsonscanner{$IFDEF DCC}, Delphi.Helper{$ENDIF};
   
 Type
 

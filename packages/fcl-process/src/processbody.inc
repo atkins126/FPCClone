@@ -105,7 +105,6 @@ Type
     FThreadHandle : Thandle;
     procedure CloseProcessHandles; virtual;
     Procedure CreateStreams(InHandle,OutHandle,ErrHandle : Longint);virtual;
-    procedure FreeStream(var AStream: THandleStream);
     procedure Loaded; override;
   Public
     Constructor Create (AOwner : TComponent);override;
@@ -117,10 +116,10 @@ Type
     Function Resume : Integer; virtual;
     Function Suspend : Integer; virtual;
     Function Terminate (AExitCode : Integer): Boolean; virtual;
-    Function WaitOnExit : Boolean;
-    Function WaitOnExit(Timeout : DWord) : Boolean;
-    function ReadInputStream(p:TInputPipeStream;var BytesRead:integer;var DataLength:integer;var Data:string;MaxLoops:integer=10):boolean; virtual;
-    function ReadInputStream(p:TInputPipeStream;data:TStream;MaxLoops:integer=10):boolean; virtual;
+    Function WaitOnExit : Boolean; overload;
+    Function WaitOnExit(Timeout : DWord) : Boolean; overload;
+    function ReadInputStream(p:TInputPipeStream;var BytesRead:integer;var DataLength:integer;var Data:string;MaxLoops:integer=10):boolean; overload; virtual;
+    function ReadInputStream(p:TInputPipeStream;data:TStream;MaxLoops:integer=10):boolean; overload; virtual;
     function RunCommandLoop(out outputstring:string;out stderrstring:string; out anexitstatus:integer):integer; virtual;
 
     Property WindowRect : Trect Read GetWindowRect Write SetWindowRect;
@@ -143,8 +142,8 @@ Type
   Published
     property PipeBufferSize : cardinal read FPipeBufferSize write FPipeBufferSize default 1024;
     Property Active : Boolean Read GetRunning Write SetActive;
-    Property ApplicationName : TProcessString Read FApplicationName Write SetApplicationName; deprecated;
-    Property CommandLine : TProcessString Read FCommandLine Write SetCommandLine ; deprecated;
+    Property ApplicationName : TProcessString Read FApplicationName Write SetApplicationName;{$IFDEF FPC} deprecated;{$ENDIF}
+    Property CommandLine : TProcessString Read FCommandLine Write SetCommandLine;{$IFDEF FPC} deprecated;{$ENDIF}
     Property Executable : TProcessString Read FExecutable Write FExecutable;
     Property Parameters : TProcessStrings Read FParameters Write SetParameters;
     Property ConsoleTitle : TProcessString Read FConsoleTitle Write FConsoleTitle;
@@ -167,6 +166,9 @@ Type
   end;
 
   TProcessClass = Class of TProcessnamemacro;
+{$IFDEF DCC}
+  TProcess = TProcessnamemacro;
+{$ENDIF}
 
 Procedure CommandToList(S : TProcessString; List : TProcessStrings);
 
@@ -177,12 +179,12 @@ Var
   Function DetectXTerm : String;
 {$endif unix}
 
-function RunCommandIndir(const curdir:TProcessString;const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; out exitstatus:integer; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):integer;
-function RunCommandIndir(const curdir:TProcessString;const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):boolean;
-function RunCommand(const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):boolean;
+function RunCommandIndir(const curdir:TProcessString;const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; out exitstatus:integer; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):integer; overload;
+function RunCommandIndir(const curdir:TProcessString;const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):boolean; overload;
+function RunCommand(const exename:TProcessString;const commands:array of TProcessString;out outputstring:string; Options : TProcessOptions = [];SWOptions:TShowWindowOptions=swoNone):boolean; overload;
 
-function RunCommandInDir(const curdir,cmdline:TProcessString;out outputstring:string):boolean; deprecated;
-function RunCommand(const cmdline:TProcessString;out outputstring:string):boolean; deprecated;
+function RunCommandInDir(const curdir,cmdline:TProcessString;out outputstring:string):boolean; deprecated; overload;
+function RunCommand(const cmdline:TProcessString;out outputstring:string):boolean; deprecated; overload;
 
 // Allows override of the class instantiated for RunCommand*.
 
@@ -263,7 +265,7 @@ begin
   FEnvironment:=TProcessStringList.Create;
   FParameters:=TProcessStringList.Create;
   FRunCommandSleepTime:=100;
-  FOnRunCommandEvent:=@IntOnIdleSleep;
+  FOnRunCommandEvent:={$IFDEF FPC}@{$ENDIF}IntOnIdleSleep;
 end;
 
 Destructor TProcessnamemacro.Destroy;
@@ -279,9 +281,9 @@ end;
 Procedure TProcessnamemacro.FreeStreams;
 begin
   If FStderrStream<>FOutputStream then
-    FreeStream(THandleStream(FStderrStream));
-  FreeStream(THandleStream(FOutputStream));
-  FreeStream(THandleStream(FInputStream));
+    FreeAndNil(FStderrStream);
+  FreeAndNil(FOutputStream);
+  FreeAndNil(FInputStream);
 end;
 
 
@@ -322,12 +324,6 @@ begin
     FStderrStream:=TInputPipeStream.Create(ErrHandle);
 end;
 
-procedure TProcessnamemacro.FreeStream(var AStream: THandleStream);
-begin
-  if AStream = nil then exit;
-  FreeAndNil(AStream);
-end;
-
 procedure TProcessnamemacro.Loaded;
 begin
   inherited Loaded;
@@ -337,17 +333,17 @@ end;
 
 procedure TProcessnamemacro.CloseInput;
 begin
-  FreeStream(THandleStream(FInputStream));
+  FreeAndNil(FInputStream);
 end;
 
 procedure TProcessnamemacro.CloseOutput;
 begin
-  FreeStream(THandleStream(FOutputStream));
+  FreeAndNil(FOutputStream);
 end;
 
 procedure TProcessnamemacro.CloseStderr;
 begin
-  FreeStream(THandleStream(FStderrStream));
+  FreeAndNil(FStderrStream);
 end;
 
 Procedure TProcessnamemacro.SetWindowColumns (Value : Cardinal);
@@ -758,4 +754,3 @@ begin
 end;
 {$endif}
 
-end.

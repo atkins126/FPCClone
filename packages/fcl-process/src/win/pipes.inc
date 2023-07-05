@@ -31,7 +31,7 @@ Const piInheritablePipe : TSecurityAttributes = (
 Function CreatePipeHandles (Var Inhandle,OutHandle : THandle; APipeBufferSize : Cardinal = PipeBufSize) : Boolean;
 
 begin
-  Result := CreatePipe (@Inhandle,@OutHandle,@piNonInheritablePipe,APipeBufferSize);
+  Result := CreatePipe ({$IFDEF FPC}@{$ENDIF}Inhandle,{$IFDEF FPC}@{$ENDIF}OutHandle,@piNonInheritablePipe,APipeBufferSize);
 end;
 
 

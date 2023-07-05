@@ -1,6 +1,8 @@
 unit pas2jshtmlresources;
 
+{$IFDEF FPC}
 {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
